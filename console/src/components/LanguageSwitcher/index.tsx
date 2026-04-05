@@ -6,8 +6,6 @@ import styles from "./index.module.less";
 import {
   SparkChinese02Line,
   SparkEnglish02Line,
-  SparkJapanLine,
-  SparkRusLine,
 } from "@agentscope-ai/icons";
 
 export default function LanguageSwitcher() {
@@ -37,23 +35,11 @@ export default function LanguageSwitcher() {
       label: "简体中文",
       onClick: () => changeLanguage("zh"),
     },
-    {
-      key: "ja",
-      label: "日本語",
-      onClick: () => changeLanguage("ja"),
-    },
-    {
-      key: "ru",
-      label: "Русский",
-      onClick: () => changeLanguage("ru"),
-    },
   ];
 
   const LIGHT_ICON: Record<string, React.ReactElement> = {
     en: <SparkEnglish02Line />,
     zh: <SparkChinese02Line />,
-    ja: <SparkJapanLine />,
-    ru: <SparkRusLine />,
   };
 
   return (

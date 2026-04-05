@@ -61,55 +61,8 @@ async def create_chat_service(ws: "Workspace", service):
     # pylint: enable=protected-access
 
 
-async def create_channel_service(ws: "Workspace", _):
-    """Create channel manager if configured.
-
-    Args:
-        ws: Workspace instance
-        _: Unused service parameter
-
-    Returns:
-        ChannelManager instance or None if not configured
-    """
-    # pylint: disable=protected-access
-    if not ws._config.channels:
-        return None
-
-    from ...config import Config, update_last_dispatch
-    from ..channels.manager import ChannelManager
-    from ..channels.utils import make_process_from_runner
-
-    temp_config = Config(channels=ws._config.channels)
-    runner = ws._service_manager.services["runner"]
-
-    def on_last_dispatch(channel, user_id, session_id):
-        update_last_dispatch(
-            channel=channel,
-            user_id=user_id,
-            session_id=session_id,
-            agent_id=ws.agent_id,
-        )
-
-    cm = ChannelManager.from_config(
-        process=make_process_from_runner(runner),
-        config=temp_config,
-        on_last_dispatch=on_last_dispatch,
-        workspace_dir=ws.workspace_dir,
-    )
-    ws._service_manager.services["channel_manager"] = cm
-
-    # Inject workspace into ChannelManager and all channels
-    cm.set_workspace(ws)
-
-    # Inject workspace into runner for control command handlers
-    runner.set_workspace(ws)
-
-    return cm
-    # pylint: enable=protected-access
-
-
 async def create_agent_config_watcher(ws: "Workspace", _):
-    """Create agent config watcher if channel/cron exists.
+    """Create agent config watcher if needed.
 
     Args:
         ws: Workspace instance
@@ -119,19 +72,11 @@ async def create_agent_config_watcher(ws: "Workspace", _):
         AgentConfigWatcher instance or None if not needed
     """
     # pylint: disable=protected-access
-    channel_mgr = ws._service_manager.services.get("channel_manager")
-    cron_mgr = ws._service_manager.services.get("cron_manager")
-
-    if not (channel_mgr or cron_mgr):
-        return None
-
     from ..agent_config_watcher import AgentConfigWatcher
 
     watcher = AgentConfigWatcher(
         agent_id=ws.agent_id,
         workspace_dir=ws.workspace_dir,
-        channel_manager=channel_mgr,
-        cron_manager=cron_mgr,
     )
     ws._service_manager.services["agent_config_watcher"] = watcher
     return watcher

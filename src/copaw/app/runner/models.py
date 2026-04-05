@@ -9,7 +9,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 from agentscope_runtime.engine.schemas.agent_schemas import Message
 
-from ..channels.schema import DEFAULT_CHANNEL
+from ...constant import DEFAULT_CHANNEL
 
 
 class ChatSpec(BaseModel):

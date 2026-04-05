@@ -24,11 +24,11 @@ from .command_dispatch import (
 from .query_error_dump import write_query_error_dump
 from .session import SafeJSONSession
 from .utils import build_env_context
-from ..channels.schema import DEFAULT_CHANNEL
 from ...agents.react_agent import CoPawAgent
 from ...security.tool_guard.models import TOOL_GUARD_DENIED_MARK
 from ...config.config import load_agent_config
 from ...constant import (
+    DEFAULT_CHANNEL,
     TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS,
     WORKING_DIR,
 )

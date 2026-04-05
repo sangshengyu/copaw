@@ -3,10 +3,8 @@
 
 Each Workspace represents a standalone agent workspace with its own:
 - Runner (request processing)
-- ChannelManager (communication channels)
 - BaseMemoryManager (conversation memory)
 - MCPClientManager (MCP tool clients)
-- CronManager (scheduled tasks)
 
 All existing single-agent components are reused without modification.
 """
@@ -18,19 +16,13 @@ from .service_manager import ServiceDescriptor, ServiceManager
 from .service_factories import (
     create_mcp_service,
     create_chat_service,
-    create_channel_service,
     create_agent_config_watcher,
     create_mcp_config_watcher,
 )
 from ..runner import AgentRunner
 from ..runner.task_tracker import TaskTracker
 from ..mcp import MCPClientManager
-from ..crons.manager import CronManager
-from ..crons.repo.json_repo import JsonJobRepository
 from ...config.config import load_agent_config
-
-if TYPE_CHECKING:
-    from ..channels.base import BaseChannel
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +41,8 @@ class Workspace:
 
     Each Workspace is an independent agent instance with its own:
     - Runner: Processes agent requests
-    - ChannelManager: Manages communication channels
     - BaseMemoryManager: Manages conversation memory
     - MCPClientManager: Manages MCP tool clients
-    - CronManager: Manages scheduled tasks
 
     All components use existing single-agent code without modification.
     """
@@ -104,16 +94,6 @@ class Workspace:
     def chat_manager(self):
         """Get chat manager instance from ServiceManager."""
         return self._service_manager.services.get("chat_manager")
-
-    @property
-    def channel_manager(self):
-        """Get channel manager instance from ServiceManager."""
-        return self._service_manager.services.get("channel_manager")
-
-    @property
-    def cron_manager(self):
-        """Get cron manager instance from ServiceManager."""
-        return self._service_manager.services.get("cron_manager")
 
     # Non-service state
     @property
@@ -221,42 +201,6 @@ class Workspace:
                     "runner"
                 ].start(),
                 priority=25,
-                concurrent_init=False,
-            ),
-        )
-
-        # Priority 30: Channel manager
-        sm.register(
-            ServiceDescriptor(
-                name="channel_manager",
-                service_class=None,
-                post_init=create_channel_service,
-                start_method="start_all",
-                stop_method="stop_all",
-                priority=30,
-                concurrent_init=False,
-            ),
-        )
-
-        # Priority 40: Cron manager
-        sm.register(
-            ServiceDescriptor(
-                name="cron_manager",
-                service_class=CronManager,
-                init_args=lambda ws: {  # pylint: disable=protected-access
-                    "repo": JsonJobRepository(
-                        str(ws.workspace_dir / "jobs.json"),
-                    ),
-                    "runner": ws._service_manager.services["runner"],
-                    "channel_manager": ws._service_manager.services.get(
-                        "channel_manager",
-                    ),
-                    "timezone": "UTC",
-                    "agent_id": ws.agent_id,
-                },
-                start_method="start",
-                stop_method="stop",
-                priority=40,
                 concurrent_init=False,
             ),
         )

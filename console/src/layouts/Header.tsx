@@ -1,4 +1,4 @@
-import { Layout, Space, Badge, Spin, Tooltip } from "antd";
+import { Layout, Space, Badge, Spin } from "antd";
 import LanguageSwitcher from "../components/LanguageSwitcher/index";
 import ThemeToggleButton from "../components/ThemeToggleButton";
 import { useTranslation } from "react-i18next";
@@ -6,9 +6,6 @@ import { Button, Modal } from "@agentscope-ai/design";
 import styles from "./index.module.less";
 import api from "../api";
 import {
-  GITHUB_URL,
-  getDocsUrl,
-  getFaqUrl,
   getReleaseNotesUrl,
   PYPI_URL,
   ONE_HOUR_MS,
@@ -114,11 +111,7 @@ export default function Header() {
   const handleOpenUpdateModal = () => {
     setUpdateMarkdown("");
     setUpdateModalOpen(true);
-    const lang = i18n.language?.startsWith("zh")
-      ? "zh"
-      : i18n.language?.startsWith("ru")
-      ? "ru"
-      : "en";
+    const lang = i18n.language?.startsWith("zh") ? "zh" : "en";
     const faqLang = lang === "zh" ? "zh" : "en";
     const url = `https://copaw.agentscope.io/docs/faq.${faqLang}.md`;
     fetch(url, { cache: "no-cache" })
@@ -128,9 +121,7 @@ export default function Header() {
         const enPattern = /###\s*How to update CoPaw[\s\S]*?(?=\n###|$)/;
         const match = text.match(faqLang === "zh" ? zhPattern : enPattern);
         setUpdateMarkdown(
-          match && lang !== "ru"
-            ? match[0].trim()
-            : UPDATE_MD[lang] ?? UPDATE_MD.en,
+          match ? match[0].trim() : UPDATE_MD[lang] ?? UPDATE_MD.en,
         );
       })
       .catch(() => {
@@ -183,36 +174,6 @@ export default function Header() {
           )}
         </div>
         <Space size="middle">
-          <Tooltip title={t("header.changelog")}>
-            <Button
-              type="text"
-              onClick={() => handleNavClick(getReleaseNotesUrl(i18n.language))}
-            >
-              {t("header.changelog")}
-            </Button>
-          </Tooltip>
-          <Tooltip title={t("header.docs")}>
-            <Button
-              type="text"
-              onClick={() => handleNavClick(getDocsUrl(i18n.language))}
-            >
-              {t("header.docs")}
-            </Button>
-          </Tooltip>
-          <Tooltip title={t("header.faq")}>
-            <Button
-              type="text"
-              onClick={() => handleNavClick(getFaqUrl(i18n.language))}
-            >
-              {t("header.faq")}
-            </Button>
-          </Tooltip>
-          <Tooltip title={t("header.github")}>
-            <Button type="text" onClick={() => handleNavClick(GITHUB_URL)}>
-              {t("header.github")}
-            </Button>
-          </Tooltip>
-          <div className={styles.headerDivider} />
           <LanguageSwitcher />
           <ThemeToggleButton />
         </Space>

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import {
   getChannelIconUrl,
   getChannelLabel,
-} from "../../../Control/Channels/components";
+} from "../../../../constants/channel";
 import type { ChatStatus } from "../../../../api/types/chat";
 import styles from "./index.module.less";
 

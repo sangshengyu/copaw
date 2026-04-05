@@ -88,9 +88,6 @@ SECRET_DIR = (
 # Default media directory for channels (cross-platform)
 DEFAULT_MEDIA_DIR = WORKING_DIR / "media"
 
-# Default local provider directory
-DEFAULT_LOCAL_PROVIDER_DIR = WORKING_DIR / "local_models"
-
 JOBS_FILE = EnvVarLoader.get_str("COPAW_JOBS_FILE", "jobs.json")
 
 CHATS_FILE = EnvVarLoader.get_str("COPAW_CHATS_FILE", "chats.json")
@@ -268,3 +265,6 @@ except (TypeError, ValueError):
 # Split output on this marker to recover the original (untruncated) portion:
 #   original = output.split(TRUNCATION_NOTICE_MARKER)[0]
 TRUNCATION_NOTICE_MARKER = "<<<TRUNCATED>>>"
+
+# Default channel when none is specified (console channel).
+DEFAULT_CHANNEL = "console"

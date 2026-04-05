@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from ..models import ChatSpec, ChatsFile
-from ...channels.schema import DEFAULT_CHANNEL
+from ....constant import DEFAULT_CHANNEL
 
 
 class BaseChatRepository(ABC):

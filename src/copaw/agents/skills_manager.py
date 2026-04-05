@@ -927,6 +927,11 @@ def ensure_skill_pool_initialized() -> bool:
 
     if created:
         import_builtin_skills()
+
+    # Reconcile pool manifest to sync with current builtin skills.
+    # This removes entries for skills that were deleted from the source
+    # and updates metadata for existing ones.
+    reconcile_pool_manifest()
     return created
 
 

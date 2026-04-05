@@ -9,7 +9,7 @@ from typing import Optional
 
 from .models import ChatSpec, ChatUpdate
 from .repo import BaseChatRepository
-from ..channels.schema import DEFAULT_CHANNEL
+from ...constant import DEFAULT_CHANNEL
 
 logger = logging.getLogger(__name__)
 

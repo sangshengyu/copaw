@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
-    from ...channels.base import BaseChannel
     from ...workspace import Workspace
 
 
@@ -23,7 +22,7 @@ class ControlContext:
     Attributes:
         workspace: Current workspace instance (for task_tracker, etc.)
         payload: Original message payload (native dict or AgentRequest)
-        channel: Channel instance
+        channel: Channel name (e.g. "console")
         session_id: Normalized session ID (e.g. "console:user1")
         user_id: User ID from request
         args: Parsed command arguments (command-specific)
@@ -31,7 +30,7 @@ class ControlContext:
 
     workspace: "Workspace"
     payload: Any
-    channel: "BaseChannel"
+    channel: str
     session_id: str
     user_id: str
     args: Dict[str, Any]

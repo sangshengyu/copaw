@@ -9,7 +9,7 @@ from typing import Optional
 import click
 
 from .http import client, print_json, resolve_base_url
-from ..app.channels.schema import DEFAULT_CHANNEL
+from ..constant import DEFAULT_CHANNEL
 
 
 @click.group("chats")

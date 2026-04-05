@@ -9,7 +9,6 @@ import {
   type Session,
 } from "./components";
 import { useSessions } from "./useSessions";
-import api from "../../../api";
 import { PageHeader } from "@/components/PageHeader";
 import styles from "./index.module.less";
 
@@ -33,21 +32,10 @@ function SessionsPage() {
   // Filter states
   const [filterUserId, setFilterUserId] = useState<string>("");
   const [filterChannel, setFilterChannel] = useState<string>("");
-  const [availableChannels, setAvailableChannels] = useState<string[]>([]);
+  // Channel types are hardcoded since channel feature was removed
+  const availableChannels = ["console"];
 
   const { message } = useAppMessage();
-
-  useEffect(() => {
-    const fetchChannelTypes = async () => {
-      try {
-        const types = await api.listChannelTypes();
-        setAvailableChannels(types);
-      } catch (error) {
-        console.error("❌ Failed to load channel types:", error);
-      }
-    };
-    fetchChannelTypes();
-  }, []);
 
   // Filter effect
   useEffect(() => {

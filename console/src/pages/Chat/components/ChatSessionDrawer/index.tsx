@@ -12,7 +12,7 @@ import type { ChatStatus } from "../../../../api/types/chat";
 import { chatApi } from "../../../../api/modules/chat";
 import sessionApi from "../../sessionApi";
 import ChatSessionItem from "../ChatSessionItem";
-import { getChannelLabel } from "../../../Control/Channels/components";
+import { getChannelLabel } from "../../../../constants/channel";
 import styles from "./index.module.less";
 
 /** Sessions from CoPaw backend include extra fields beyond the runtime UI type */

@@ -2,13 +2,9 @@ import { Layout } from "antd";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
-import ConsoleCronBubble from "../../components/ConsoleCronBubble";
 import styles from "../index.module.less";
 import Chat from "../../pages/Chat";
-import ChannelsPage from "../../pages/Control/Channels";
 import SessionsPage from "../../pages/Control/Sessions";
-import CronJobsPage from "../../pages/Control/CronJobs";
-import HeartbeatPage from "../../pages/Control/Heartbeat";
 import AgentConfigPage from "../../pages/Agent/Config";
 import SkillsPage from "../../pages/Agent/Skills";
 import SkillPoolPage from "../../pages/Agent/SkillPool";
@@ -26,10 +22,7 @@ const { Content } = Layout;
 
 const pathToKey: Record<string, string> = {
   "/chat": "chat",
-  "/channels": "channels",
   "/sessions": "sessions",
-  "/cron-jobs": "cron-jobs",
-  "/heartbeat": "heartbeat",
   "/skills": "skills",
   "/skill-pool": "skill-pool",
   "/tools": "tools",
@@ -55,15 +48,11 @@ export default function MainLayout() {
       <Layout>
         <Sidebar selectedKey={selectedKey} />
         <Content className="page-container">
-          <ConsoleCronBubble />
           <div className="page-content">
             <Routes>
               <Route path="/" element={<Navigate to="/chat" replace />} />
               <Route path="/chat/*" element={<Chat />} />
-              <Route path="/channels" element={<ChannelsPage />} />
               <Route path="/sessions" element={<SessionsPage />} />
-              <Route path="/cron-jobs" element={<CronJobsPage />} />
-              <Route path="/heartbeat" element={<HeartbeatPage />} />
               <Route path="/skills" element={<SkillsPage />} />
               <Route path="/skill-pool" element={<SkillPoolPage />} />
               <Route path="/tools" element={<ToolsPage />} />

@@ -62,9 +62,7 @@ def create_agent_scoped_router() -> APIRouter:
     from .config import router as config_router
     from .mcp import router as mcp_router
     from .workspace import router as workspace_router
-    from ..crons.api import router as cron_router
     from ..runner.api import router as chats_router
-    from .console import router as console_router
 
     # Create parent router with agentId parameter
     router = APIRouter(prefix="/agents/{agentId}", tags=["agent-scoped"])
@@ -72,8 +70,7 @@ def create_agent_scoped_router() -> APIRouter:
     # Include all agent-specific sub-routers (they keep their own prefixes)
     # /agents/{agentId}/agent/* -> agent_router
     # /agents/{agentId}/chats/* -> chats_router
-    # /agents/{agentId}/config/* -> config_router (channels, heartbeat)
-    # /agents/{agentId}/cron/* -> cron_router
+    # /agents/{agentId}/config/* -> config_router
     # /agents/{agentId}/mcp/* -> mcp_router
     # /agents/{agentId}/skills/* -> skills_router
     # /agents/{agentId}/tools/* -> tools_router
@@ -81,11 +78,9 @@ def create_agent_scoped_router() -> APIRouter:
     router.include_router(agent_router)
     router.include_router(chats_router)
     router.include_router(config_router)
-    router.include_router(cron_router)
     router.include_router(mcp_router)
     router.include_router(skills_router)
     router.include_router(tools_router)
     router.include_router(workspace_router)
-    router.include_router(console_router)
 
     return router

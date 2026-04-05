@@ -15,10 +15,7 @@ import { useAppMessage } from "../hooks/useAppMessage";
 import AgentSelector from "../components/AgentSelector";
 import {
   SparkChatTabFill,
-  SparkWifiLine,
   SparkUserGroupLine,
-  SparkDateLine,
-  SparkVoiceChat01Line,
   SparkMagicWandLine,
   SparkLocalFileLine,
   SparkModePlazaLine,
@@ -139,28 +136,10 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       label: t("nav.chat"),
     },
     {
-      key: "channels",
-      icon: <SparkWifiLine size={18} />,
-      path: "/channels",
-      label: t("nav.channels"),
-    },
-    {
       key: "sessions",
       icon: <SparkUserGroupLine size={18} />,
       path: "/sessions",
       label: t("nav.sessions"),
-    },
-    {
-      key: "cron-jobs",
-      icon: <SparkDateLine size={18} />,
-      path: "/cron-jobs",
-      label: t("nav.cronJobs"),
-    },
-    {
-      key: "heartbeat",
-      icon: <SparkVoiceChat01Line size={18} />,
-      path: "/heartbeat",
-      label: t("nav.heartbeat"),
     },
     {
       key: "workspace",
@@ -249,24 +228,9 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       label: collapsed ? null : t("nav.control"),
       children: [
         {
-          key: "channels",
-          label: collapsed ? null : t("nav.channels"),
-          icon: <SparkWifiLine size={16} />,
-        },
-        {
           key: "sessions",
           label: collapsed ? null : t("nav.sessions"),
           icon: <SparkUserGroupLine size={16} />,
-        },
-        {
-          key: "cron-jobs",
-          label: collapsed ? null : t("nav.cronJobs"),
-          icon: <SparkDateLine size={16} />,
-        },
-        {
-          key: "heartbeat",
-          label: collapsed ? null : t("nav.heartbeat"),
-          icon: <SparkVoiceChat01Line size={16} />,
         },
       ],
     },

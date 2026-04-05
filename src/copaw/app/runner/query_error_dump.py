@@ -10,7 +10,7 @@ import traceback
 from datetime import datetime, timezone
 from typing import Any
 
-from ..channels.schema import DEFAULT_CHANNEL
+from ...constant import DEFAULT_CHANNEL
 
 logger = logging.getLogger(__name__)
 

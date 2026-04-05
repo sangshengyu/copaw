@@ -339,31 +339,37 @@ def get_system_default_browser() -> Tuple[Optional[str], Optional[str]]:
 
 
 def get_available_channels() -> Tuple[str, ...]:
-    """Return channel keys enabled for this run (built-in + entry point
-    copaw.channels), filtered by COPAW_ENABLED_CHANNELS or
-    COPAW_DISABLED_CHANNELS when set.
+    """Return channel keys enabled for this run.
 
+    Since the channels module has been removed, this function now returns
+    a default tuple with only "console" as the available channel.
+
+    Environment variables are still respected for backward compatibility:
     * COPAW_ENABLED_CHANNELS — whitelist (only these channels are active).
     * COPAW_DISABLED_CHANNELS — blacklist (all channels *except* these).
     * If both are set, COPAW_ENABLED_CHANNELS takes precedence.
-    * If neither is set, all discovered channels are returned.
+    * If neither is set, returns ("console",).
     """
-    from ..app.channels.registry import get_channel_registry
-
-    registry = get_channel_registry()
-    all_keys = tuple(registry.keys())
+    # Default channels since channels module was removed
+    default_channels = ("console",)
 
     raw_enabled = os.environ.get("COPAW_ENABLED_CHANNELS", "").strip()
     if raw_enabled:
         enabled = {ch.strip() for ch in raw_enabled.split(",") if ch.strip()}
-        return tuple(k for k in all_keys if k in enabled) or all_keys
+        return (
+            tuple(k for k in default_channels if k in enabled)
+            or default_channels
+        )
 
     raw_disabled = os.environ.get("COPAW_DISABLED_CHANNELS", "").strip()
     if raw_disabled:
         disabled = {ch.strip() for ch in raw_disabled.split(",") if ch.strip()}
-        return tuple(k for k in all_keys if k not in disabled) or all_keys
+        return (
+            tuple(k for k in default_channels if k not in disabled)
+            or default_channels
+        )
 
-    return all_keys
+    return default_channels
 
 
 def is_running_in_container() -> bool:

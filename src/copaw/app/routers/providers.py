@@ -32,8 +32,6 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 ChatModelName = Literal[
     "OpenAIChatModel",
-    "AnthropicChatModel",
-    "GeminiChatModel",
 ]
 
 # effective: agent-specific if set, otherwise global

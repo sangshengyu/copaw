@@ -20,10 +20,8 @@ from ..utils.logging import setup_logger, add_copaw_file_handler
 from .auth import AuthMiddleware
 from .routers import router as api_router, create_agent_scoped_router
 from .routers.agent_scoped import AgentContextMiddleware
-from .routers.voice import voice_router
 from ..envs import load_envs_into_environ
 from ..providers.provider_manager import ProviderManager
-from ..local_models.manager import LocalModelManager
 from .multi_agent_manager import MultiAgentManager
 from .migration import (
     migrate_legacy_workspace_to_default_agent,
@@ -31,7 +29,6 @@ from .migration import (
     ensure_default_agent_exists,
     ensure_qa_agent_exists,
 )
-from .channels.registry import register_custom_channel_routes
 
 # Apply log level on load so reload child process gets same level as CLI.
 logger = setup_logger(os.environ.get(LOG_LEVEL_ENV, "info"))
@@ -199,9 +196,6 @@ async def lifespan(
     # --- Model provider manager (non-reloadable, in-memory) ---
     provider_manager = ProviderManager.get_instance()
 
-    # --- Local model manager initialization ---
-    local_model_manager = LocalModelManager.get_instance()
-
     # Expose to endpoints - multi-agent manager
     app.state.multi_agent_manager = multi_agent_manager
 
@@ -221,18 +215,6 @@ async def lifespan(
 
     # Global managers (shared across all agents)
     app.state.provider_manager = provider_manager
-    app.state.local_model_manager = local_model_manager
-
-    provider_manager.start_local_model_resume(local_model_manager)
-
-    # Setup approval service with default agent's channel_manager
-    default_agent = await multi_agent_manager.get_agent("default")
-    if default_agent.channel_manager:
-        from .approvals import get_approval_service
-
-        get_approval_service().set_channel_manager(
-            default_agent.channel_manager,
-        )
 
     startup_elapsed = time.time() - startup_start_time
     logger.debug(
@@ -242,19 +224,6 @@ async def lifespan(
     try:
         yield
     finally:
-        local_model_mgr = getattr(app.state, "local_model_manager", None)
-        if local_model_mgr is not None:
-            logger.info("Stopping local model server...")
-            try:
-                await local_model_mgr.shutdown_server()
-            except Exception as exc:
-                logger.error(
-                    "Error shutting down local model server gracefully: %s",
-                    exc,
-                )
-                with suppress(OSError, RuntimeError, ValueError):
-                    local_model_mgr.force_shutdown_server()
-
         # Stop multi-agent manager (stops all agents and their components)
         multi_agent_mgr = getattr(app.state, "multi_agent_manager", None)
         if multi_agent_mgr is not None:
@@ -365,13 +334,6 @@ app.include_router(
     prefix="/api/agent",
     tags=["agent"],
 )
-
-# Voice channel: Twilio-facing endpoints at root level (not under /api/).
-# POST /voice/incoming, WS /voice/ws, POST /voice/status-callback
-app.include_router(voice_router, tags=["voice"])
-
-# Custom channel routes (before SPA catch-all to ensure route priority)
-register_custom_channel_routes(app)
 
 # Console static files and SPA fallback
 # Register these AFTER API routes to ensure proper routing priority
