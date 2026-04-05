@@ -25,7 +25,6 @@ import {
   SparkMcpMcpLine,
   SparkToolLine,
   SparkDataLine,
-  SparkMicLine,
   SparkAgentLine,
   SparkExitFullscreenLine,
   SparkSearchUserLine,
@@ -207,12 +206,6 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
       path: "/token-usage",
       label: t("nav.tokenUsage"),
     },
-    {
-      key: "voice-transcription",
-      icon: <SparkMicLine size={18} />,
-      path: "/voice-transcription",
-      label: t("nav.voiceTranscription"),
-    },
   ];
 
   // ── Menu items ────────────────────────────────────────────────────────────
@@ -298,11 +291,6 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
           key: "token-usage",
           label: collapsed ? null : t("nav.tokenUsage"),
           icon: <SparkDataLine size={16} />,
-        },
-        {
-          key: "voice-transcription",
-          label: collapsed ? null : t("nav.voiceTranscription"),
-          icon: <SparkMicLine size={16} />,
         },
       ],
     },

@@ -1,0 +1,17 @@
+server:
+  port: 8088
+  servlet:
+    context-path: /api
+
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+copaw:
+  version: 2.0.0-SNAPSHOT
+  data-dir: ${user.home}/.copaw
