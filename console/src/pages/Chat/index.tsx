@@ -3,7 +3,7 @@ import {
   IAgentScopeRuntimeWebUIOptions,
   type IAgentScopeRuntimeWebUIRef,
 } from "@agentscope-ai/chat";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Result, Tooltip } from "antd";
 import { useAppMessage } from "../../hooks/useAppMessage";
 import { ExclamationCircleOutlined, SettingOutlined } from "@ant-design/icons";
@@ -256,6 +256,43 @@ function RuntimeLoadingBridge({
   }, [getLoading, setLoading, bridgeRef]);
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Error Boundary – catches rendering errors inside Chat so the whole app
+// does not go white.  Shows the error message on screen for debugging.
+// ---------------------------------------------------------------------------
+
+class ChatErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[ChatErrorBoundary]", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32 }}>
+          <h2 style={{ color: "red" }}>Chat rendering error</h2>
+          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {this.state.error.message}
+            {"\n"}
+            {this.state.error.stack}
+          </pre>
+          <button onClick={() => this.setState({ error: null })}>Retry</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function ChatPage() {
@@ -682,11 +719,13 @@ export default function ChatPage() {
       }}
     >
       <div className={styles.chatMessagesArea}>
-        <AgentScopeRuntimeWebUI
-          ref={chatRef}
-          key={refreshKey}
-          options={options}
-        />
+        <ChatErrorBoundary>
+          <AgentScopeRuntimeWebUI
+            ref={chatRef}
+            key={refreshKey}
+            options={options}
+          />
+        </ChatErrorBoundary>
       </div>
 
       <Modal

@@ -63,6 +63,20 @@ public class ChatService {
     }
 
     /**
+     * Find a chat by session_id, user_id, and channel.
+     * Mirrors Python's ChatManager.get_or_create_chat lookup logic.
+     *
+     * @param sessionId the session identifier (e.g., frontend timestamp)
+     * @param userId    the user ID
+     * @param channel   the channel name
+     * @return the matching chat spec, or null if not found
+     */
+    public ChatSpec getChatBySessionId(String sessionId, String userId, String channel) {
+        String agentId = getActiveAgentId();
+        return chatStore.getChatBySessionId(agentId, sessionId, userId, channel);
+    }
+
+    /**
      * Create a new chat.
      *
      * @param spec the chat spec

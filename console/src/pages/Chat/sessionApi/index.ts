@@ -138,8 +138,12 @@ function contentToRequestParts(
   return parts;
 }
 function normalizeOutputMessageContent(content: unknown): unknown {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return content;
+  if (typeof content === "string") {
+    return [{ type: "text", text: content }];
+  }
+  if (!Array.isArray(content)) {
+    return [{ type: "text", text: String(content ?? "") }];
+  }
   return (content as ContentItem[]).map(resolveContentItemUrl);
 }
 

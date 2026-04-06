@@ -113,6 +113,25 @@ public class ChatStore {
     }
 
     /**
+     * Find a chat by session_id, user_id, and channel (matching Python's get_chat_by_id).
+     *
+     * @param agentId   the agent ID
+     * @param sessionId the session identifier sent by the frontend
+     * @param userId    the user ID
+     * @param channel   the channel name
+     * @return the matching chat spec, or null if not found
+     */
+    public ChatSpec getChatBySessionId(String agentId, String sessionId, String userId, String channel) {
+        List<ChatSpec> chats = listChats(agentId);
+        return chats.stream()
+                .filter(c -> sessionId.equals(c.getSessionId())
+                        && (userId == null || userId.equals(c.getUserId()))
+                        && (channel == null || channel.equals(c.getChannel())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
      * Create a new chat.
      *
      * @param agentId the agent ID
