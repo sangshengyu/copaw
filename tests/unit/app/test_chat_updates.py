@@ -10,11 +10,11 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from copaw.app.runner import manager as chat_manager_module
-from copaw.app.runner.api import get_chat_manager, router
-from copaw.app.runner.manager import ChatManager
-from copaw.app.runner.models import ChatSpec, ChatUpdate
-from copaw.app.runner.repo.json_repo import JsonChatRepository
+from sa.app.runner import manager as chat_manager_module
+from sa.app.runner.api import get_chat_manager, router
+from sa.app.runner.manager import ChatManager
+from sa.app.runner.models import ChatSpec, ChatUpdate
+from sa.app.runner.repo.json_repo import JsonChatRepository
 
 
 @pytest.fixture

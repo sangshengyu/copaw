@@ -1,8 +1,8 @@
 // ── URLs ──────────────────────────────────────────────────────────────────
 
-export const PYPI_URL = "https://pypi.org/pypi/copaw/json";
+export const PYPI_URL = "https://pypi.org/pypi/sa/json";
 
-export const GITHUB_URL = "https://github.com/agentscope-ai/CoPaw" as const;
+export const GITHUB_URL = "https://github.com/agentscope-ai/SolutionArchitect" as const;
 
 // ── Timing ────────────────────────────────────────────────────────────────
 
@@ -55,13 +55,13 @@ export const getWebsiteLang = (lang: string): string =>
   lang.startsWith("zh") ? "zh" : "en";
 
 export const getDocsUrl = (lang: string): string =>
-  `https://copaw.agentscope.io/docs/intro?lang=${getWebsiteLang(lang)}`;
+  `https://sa.agentscope.io/docs/intro?lang=${getWebsiteLang(lang)}`;
 
 export const getFaqUrl = (lang: string): string =>
-  `https://copaw.agentscope.io/docs/faq?lang=${getWebsiteLang(lang)}`;
+  `https://sa.agentscope.io/docs/faq?lang=${getWebsiteLang(lang)}`;
 
 export const getReleaseNotesUrl = (lang: string): string =>
-  `https://copaw.agentscope.io/release-notes?lang=${getWebsiteLang(lang)}`;
+  `https://sa.agentscope.io/release-notes?lang=${getWebsiteLang(lang)}`;
 
 // ── Version helpers ────────────────────────────────────────────────────────
 
@@ -115,22 +115,22 @@ export const compareVersions = (a: string, b: string): number => {
 // ── Update markdown ───────────────────────────────────────────────────────
 
 export const UPDATE_MD: Record<string, string> = {
-  zh: `### CoPaw如何更新
+  zh: `### SolutionArchitect如何更新
 
-要更新 CoPaw 到最新版本，可根据你的安装方式选择对应方法：
+要更新 SolutionArchitect 到最新版本，可根据你的安装方式选择对应方法：
 
 1. 如果你使用的是一键安装脚本，直接重新运行安装命令即可自动升级。
 
 2. 如果你是通过 pip 安装，在终端中执行以下命令升级：
 
 \`\`\`
-pip install --upgrade copaw
+pip install --upgrade sa
 \`\`\`
 
 3. 如果你是从源码安装，进入项目目录并拉取最新代码后重新安装：
 
 \`\`\`
-cd CoPaw
+cd SolutionArchitect
 git pull origin main
 pip install -e .
 \`\`\`
@@ -138,28 +138,28 @@ pip install -e .
 4. 如果你使用的是 Docker，拉取最新镜像并重启容器：
 
 \`\`\`
-docker pull agentscope/copaw:latest
-docker run -p 127.0.0.1:8088:8088 -v copaw-data:/app/working agentscope/copaw:latest
+docker pull agentscope/sa:latest
+docker run -p 127.0.0.1:8088:8088 -v sa-data:/app/working agentscope/sa:latest
 \`\`\`
 
-升级后重启服务 copaw app。`,
+升级后重启服务 sa app。`,
 
-  ru: `### Как обновить CoPaw
+  ru: `### Как обновить SolutionArchitect
 
-Чтобы обновить CoPaw, выберите способ в зависимости от типа установки:
+Чтобы обновить SolutionArchitect, выберите способ в зависимости от типа установки:
 
 1. Если вы устанавливали через однострочный скрипт, повторно запустите установщик для обновления.
 
 2. Если устанавливали через pip, выполните:
 
 \`\`\`
-pip install --upgrade copaw
+pip install --upgrade sa
 \`\`\`
 
 3. Если устанавливали из исходников, получите последние изменения и переустановите:
 
 \`\`\`
-cd CoPaw
+cd SolutionArchitect
 git pull origin main
 pip install -e .
 \`\`\`
@@ -167,28 +167,28 @@ pip install -e .
 4. Если используете Docker, загрузите новый образ и перезапустите контейнер:
 
 \`\`\`
-docker pull agentscope/copaw:latest
-docker run -p 127.0.0.1:8088:8088 -v copaw-data:/app/working agentscope/copaw:latest
+docker pull agentscope/sa:latest
+docker run -p 127.0.0.1:8088:8088 -v sa-data:/app/working agentscope/sa:latest
 \`\`\`
 
-После обновления перезапустите сервис с помощью \`copaw app\`.`,
+После обновления перезапустите сервис с помощью \`sa app\`.`,
 
-  en: `### How to update CoPaw
+  en: `### How to update SolutionArchitect
 
-To update CoPaw, use the method matching your installation type:
+To update SolutionArchitect, use the method matching your installation type:
 
 1. If installed via one-line script, re-run the installer to upgrade.
 
 2. If installed via pip, run:
 
 \`\`\`
-pip install --upgrade copaw
+pip install --upgrade sa
 \`\`\`
 
 3. If installed from source, pull the latest code and reinstall:
 
 \`\`\`
-cd CoPaw
+cd SolutionArchitect
 git pull origin main
 pip install -e .
 \`\`\`
@@ -196,9 +196,9 @@ pip install -e .
 4. If using Docker, pull the latest image and restart the container:
 
 \`\`\`
-docker pull agentscope/copaw:latest
-docker run -p 127.0.0.1:8088:8088 -v copaw-data:/app/working agentscope/copaw:latest
+docker pull agentscope/sa:latest
+docker run -p 127.0.0.1:8088:8088 -v sa-data:/app/working agentscope/sa:latest
 \`\`\`
 
-After upgrading, restart the service with \`copaw app\`.`,
+After upgrading, restart the service with \`sa app\`.`,
 };

@@ -113,12 +113,12 @@ export default function Header() {
     setUpdateModalOpen(true);
     const lang = i18n.language?.startsWith("zh") ? "zh" : "en";
     const faqLang = lang === "zh" ? "zh" : "en";
-    const url = `https://copaw.agentscope.io/docs/faq.${faqLang}.md`;
+    const url = `https://sa.agentscope.io/docs/faq.${faqLang}.md`;
     fetch(url, { cache: "no-cache" })
       .then((res) => (res.ok ? res.text() : Promise.reject()))
       .then((text) => {
-        const zhPattern = /###\s*CoPaw如何更新[\s\S]*?(?=\n###|$)/;
-        const enPattern = /###\s*How to update CoPaw[\s\S]*?(?=\n###|$)/;
+        const zhPattern = /###\s*SolutionArchitect如何更新[\s\S]*?(?=\n###|$)/;
+        const enPattern = /###\s*How to update SolutionArchitect[\s\S]*?(?=\n###|$)/;
         const match = text.match(faqLang === "zh" ? zhPattern : enPattern);
         setUpdateMarkdown(
           match ? match[0].trim() : UPDATE_MD[lang] ?? UPDATE_MD.en,
@@ -150,7 +150,7 @@ export default function Header() {
                 ? `${import.meta.env.BASE_URL}dark-logo.png`
                 : `${import.meta.env.BASE_URL}logo.png`
             }
-            alt="CoPaw"
+            alt="SolutionArchitect"
             className={styles.logoImg}
           />
           <div className={styles.logoDivider} />

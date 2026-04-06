@@ -19,7 +19,7 @@ export function ProviderCard({
   onMouseEnter,
   onMouseLeave,
 }: ProviderCardProps) {
-  if (provider.id === "copaw-local") {
+  if (provider.id === "sa-local") {
     return (
       <LocalProviderCard
         provider={provider}

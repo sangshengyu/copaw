@@ -45,9 +45,9 @@ export default defineConfig(({ mode }) => {
       include: ["diff"],
     },
     // build: {
-    //   // Output to CoPaw's console directory,
+    //   // Output to SolutionArchitect's console directory,
     //   // so we don't need to copy files manually after build.
-    //   outDir: path.resolve(__dirname, "../src/copaw/console"),
+    //   outDir: path.resolve(__dirname, "../src/sa/console"),
     //   emptyOutDir: true,
     // },
   };

@@ -15,7 +15,7 @@ import ChatSessionItem from "../ChatSessionItem";
 import { getChannelLabel } from "../../../../constants/channel";
 import styles from "./index.module.less";
 
-/** Sessions from CoPaw backend include extra fields beyond the runtime UI type */
+/** Sessions from SolutionArchitect backend include extra fields beyond the runtime UI type */
 interface ExtendedChatSession extends IAgentScopeRuntimeWebUISession {
   realId?: string;
   sessionId?: string;

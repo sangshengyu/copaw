@@ -5,34 +5,34 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from copaw.config.config import (
+from sa.config.config import (
     AgentProfileConfig,
     AgentsRunningConfig,
     load_agent_config,
     save_agent_config,
 )
-from copaw.constant import (
+from sa.constant import (
     LLM_BACKOFF_BASE,
     LLM_BACKOFF_CAP,
     LLM_MAX_RETRIES,
 )
-from copaw.providers.models import ModelSlotConfig
+from sa.providers.models import ModelSlotConfig
 
 
 @pytest.fixture
 def mock_agent_workspace(tmp_path, monkeypatch):
     """Create a temporary agent workspace for testing."""
     import json
-    from copaw.config.utils import get_config_path
-    from copaw.config.config import Config, AgentsConfig, AgentProfileRef
+    from sa.config.utils import get_config_path
+    from sa.config.config import Config, AgentsConfig, AgentProfileRef
 
     # Setup workspace directory
     workspace_dir = tmp_path / "workspaces" / "test_agent"
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
-    # Patch WORKING_DIR so tests never touch the real ~/.copaw/
-    monkeypatch.setattr("copaw.config.utils.WORKING_DIR", tmp_path)
-    monkeypatch.setattr("copaw.config.config.WORKING_DIR", tmp_path)
+    # Patch WORKING_DIR so tests never touch the real ~/.sa/
+    monkeypatch.setattr("sa.config.utils.WORKING_DIR", tmp_path)
+    monkeypatch.setattr("sa.config.config.WORKING_DIR", tmp_path)
 
     # Create root config with this agent
     root_config = Config(
@@ -136,18 +136,18 @@ def test_agent_model_config_can_be_cleared(
 
 def test_different_agents_have_independent_models(tmp_path, monkeypatch):
     """Test that different agents can have different model configs."""
-    # Patch WORKING_DIR so tests never touch the real ~/.copaw/
-    monkeypatch.setattr("copaw.config.utils.WORKING_DIR", tmp_path)
-    monkeypatch.setattr("copaw.config.config.WORKING_DIR", tmp_path)
+    # Patch WORKING_DIR so tests never touch the real ~/.sa/
+    monkeypatch.setattr("sa.config.utils.WORKING_DIR", tmp_path)
+    monkeypatch.setattr("sa.config.config.WORKING_DIR", tmp_path)
 
     # Create two agents
     import json
-    from copaw.config.config import (
+    from sa.config.config import (
         Config,
         AgentsConfig,
         AgentProfileRef,
     )
-    from copaw.config.utils import get_config_path
+    from sa.config.utils import get_config_path
 
     agent1_dir = tmp_path / "workspaces" / "agent1"
     agent2_dir = tmp_path / "workspaces" / "agent2"

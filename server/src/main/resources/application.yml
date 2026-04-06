@@ -12,6 +12,6 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
 
-copaw:
+sa:
   version: 2.0.0-SNAPSHOT
-  data-dir: ${user.home}/.copaw
+  data-dir: ${user.home}/.sa

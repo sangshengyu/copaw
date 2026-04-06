@@ -1,0 +1,237 @@
+package cn.sangshy.sa.controller;
+
+import cn.sangshy.sa.model.agent.AgentProfileConfig;
+import cn.sangshy.sa.model.common.MdFileInfo;
+import cn.sangshy.sa.model.config.AgentsRunningConfig;
+import cn.sangshy.sa.service.AgentService;
+import cn.sangshy.sa.storage.AgentConfigStore;
+import cn.sangshy.sa.storage.ConfigStore;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Agent file management API for the active agent.
+ */
+@RestController
+@RequestMapping("/agent")
+public class AgentController {
+
+    private static final Set<String> VALID_LANGUAGES = Set.of("zh", "en", "ru");
+
+    private final AgentService agentService;
+    private final AgentConfigStore agentConfigStore;
+    private final ConfigStore configStore;
+
+    public AgentController(
+            AgentService agentService,
+            AgentConfigStore agentConfigStore,
+            ConfigStore configStore) {
+        this.agentService = agentService;
+        this.agentConfigStore = agentConfigStore;
+        this.configStore = configStore;
+    }
+
+    /**
+     * Resolve the agent ID from X-Agent-Id header or fall back to active agent.
+     */
+    private String resolveAgentId(String agentIdHeader) {
+        return (agentIdHeader != null && !agentIdHeader.isBlank())
+                ? agentIdHeader
+                : agentService.getActiveAgentId();
+    }
+
+    /**
+     * List working files for active agent.
+     * GET /agent/files
+     */
+    @GetMapping("/files")
+    public List<MdFileInfo> listWorkingFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.listAgentFiles(agentId);
+    }
+
+    /**
+     * Read a working file for active agent.
+     * GET /agent/files/{md_name}
+     */
+    @GetMapping("/files/{md_name}")
+    public Map<String, String> readWorkingFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName) {
+        String agentId = resolveAgentId(agentIdHeader);
+        try {
+            String content = agentService.readAgentFile(agentId, mdName);
+            return Map.of("content", content);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Write a working file for active agent.
+     * PUT /agent/files/{md_name}
+     */
+    @PutMapping("/files/{md_name}")
+    public Map<String, Object> writeWorkingFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName,
+            @RequestBody Map<String, String> request) {
+        String content = request.get("content");
+        if (content == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "content is required");
+        }
+        String agentId = resolveAgentId(agentIdHeader);
+        boolean written = agentService.writeAgentFile(agentId, mdName, content);
+        return Map.of("written", written);
+    }
+
+    /**
+     * List memory files for active agent.
+     * GET /agent/memory
+     */
+    @GetMapping("/memory")
+    public List<MdFileInfo> listMemoryFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.listAgentMemory(agentId);
+    }
+
+    /**
+     * Read a memory file for active agent.
+     * GET /agent/memory/{md_name}
+     */
+    @GetMapping("/memory/{md_name}")
+    public Map<String, String> readMemoryFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName) {
+        String agentId = resolveAgentId(agentIdHeader);
+        try {
+            String content = agentService.readAgentFile(agentId, "memory/" + mdName);
+            return Map.of("content", content);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Write a memory file for active agent.
+     * PUT /agent/memory/{md_name}
+     */
+    @PutMapping("/memory/{md_name}")
+    public Map<String, Object> writeMemoryFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName,
+            @RequestBody Map<String, String> request) {
+        String content = request.get("content");
+        if (content == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "content is required");
+        }
+        String agentId = resolveAgentId(agentIdHeader);
+        boolean written = agentService.writeAgentFile(agentId, "memory/" + mdName, content);
+        return Map.of("written", written);
+    }
+
+    /**
+     * Get agent language.
+     * GET /agent/language
+     */
+    @GetMapping("/language")
+    public Map<String, Object> getAgentLanguage(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        AgentProfileConfig config = agentService.getAgentConfig(agentId);
+        return Map.of(
+                "language", config.getLanguage() != null ? config.getLanguage() : "zh",
+                "agent_id", agentId
+        );
+    }
+
+    /**
+     * Update agent language.
+     * PUT /agent/language
+     */
+    @PutMapping("/language")
+    public Map<String, Object> updateAgentLanguage(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody Map<String, String> request) {
+        String language = request.get("language");
+        if (language == null || language.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "language is required");
+        }
+
+        language = language.strip().toLowerCase();
+        if (!VALID_LANGUAGES.contains(language)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid language '" + language + "'. Must be one of: en, ru, zh");
+        }
+
+        String agentId = resolveAgentId(agentIdHeader);
+        AgentProfileConfig config = agentService.getAgentConfig(agentId);
+        String oldLanguage = config.getLanguage();
+        config.setLanguage(language);
+        agentConfigStore.saveAgentConfig(config);
+
+        // Return copied files (empty for now, would need to implement file copying logic)
+        List<String> copiedFiles = List.of();
+
+        return Map.of(
+                "language", language,
+                "copied_files", copiedFiles,
+                "agent_id", agentId
+        );
+    }
+
+    /**
+     * Get agent running config.
+     * GET /agent/running-config
+     */
+    @GetMapping("/running-config")
+    public AgentsRunningConfig getRunningConfig(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.getRunningConfig(agentId);
+    }
+
+    /**
+     * Update agent running config.
+     * PUT /agent/running-config
+     */
+    @PutMapping("/running-config")
+    public AgentsRunningConfig updateRunningConfig(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody AgentsRunningConfig config) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.updateRunningConfig(agentId, config);
+    }
+
+    /**
+     * Get system prompt files.
+     * GET /agent/system-prompt-files
+     */
+    @GetMapping("/system-prompt-files")
+    public List<String> getSystemPromptFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.getSystemPromptFiles(agentId);
+    }
+
+    /**
+     * Update system prompt files.
+     * PUT /agent/system-prompt-files
+     */
+    @PutMapping("/system-prompt-files")
+    public List<String> updateSystemPromptFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody List<String> files) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return agentService.updateSystemPromptFiles(agentId, files);
+    }
+}

@@ -43,7 +43,7 @@ export const useAgentStore = create<AgentStore>()(
         })),
     }),
     {
-      name: "copaw-agent-storage",
+      name: "sa-agent-storage",
       storage: {
         getItem: (name) => {
           try {
