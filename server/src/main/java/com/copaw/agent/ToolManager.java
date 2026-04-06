@@ -1,5 +1,11 @@
 package com.copaw.agent;
 
+import com.copaw.agent.tools.EditFileTool;
+import com.copaw.agent.tools.ExecuteShellTool;
+import com.copaw.agent.tools.GetCurrentTimeTool;
+import com.copaw.agent.tools.GlobSearchTool;
+import com.copaw.agent.tools.GrepSearchTool;
+import com.copaw.agent.tools.ListDirTool;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolkitConfig;
@@ -39,21 +45,44 @@ public class ToolManager {
             toolkit.registerTool(new ReadFileTool(workspaceDir));
             log.debug("Registered tool: read_file");
         }
-        
+
         if (isToolEnabled("write_file", enabledToolNames)) {
             toolkit.registerTool(new WriteFileTool(workspaceDir));
             log.debug("Registered tool: write_file");
         }
-        
-        // TODO: Register more built-in tools:
-        // - edit_file
-        // - list_dir  
-        // - execute_shell_command
-        // - grep_search
-        // - glob_search
-        // - get_current_time
-        // - browser_use (optional)
-        // - desktop_screenshot (optional)
+
+        if (isToolEnabled("edit_file", enabledToolNames)) {
+            toolkit.registerTool(new EditFileTool(workspaceDir));
+            log.debug("Registered tool: edit_file");
+        }
+
+        if (isToolEnabled("list_dir", enabledToolNames)) {
+            toolkit.registerTool(new ListDirTool(workspaceDir));
+            log.debug("Registered tool: list_dir");
+        }
+
+        // Search operations
+        if (isToolEnabled("grep_search", enabledToolNames)) {
+            toolkit.registerTool(new GrepSearchTool(workspaceDir));
+            log.debug("Registered tool: grep_search");
+        }
+
+        if (isToolEnabled("glob_search", enabledToolNames)) {
+            toolkit.registerTool(new GlobSearchTool(workspaceDir));
+            log.debug("Registered tool: glob_search");
+        }
+
+        // Shell execution
+        if (isToolEnabled("execute_shell", enabledToolNames)) {
+            toolkit.registerTool(new ExecuteShellTool(workspaceDir));
+            log.debug("Registered tool: execute_shell");
+        }
+
+        // Utility tools
+        if (isToolEnabled("get_current_time", enabledToolNames)) {
+            toolkit.registerTool(new GetCurrentTimeTool());
+            log.debug("Registered tool: get_current_time");
+        }
         
         log.info("Created toolkit with {} tools for workspace: {}", 
                 toolkit.getToolNames().size(), workspaceDir);

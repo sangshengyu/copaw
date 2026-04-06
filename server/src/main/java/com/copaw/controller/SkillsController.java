@@ -31,19 +31,275 @@ public class SkillsController {
         this.agentService = agentService;
     }
 
-    // ==================== Default Agent Skills ====================
+    // ==================== Default Agent Skills (Frontend API) ====================
 
     /**
      * List skills for the active/default agent.
      * Frontend calls GET /skills without agent_id to get skills for the current agent.
+     * Supports X-Agent-Id header for agent isolation.
      */
     @GetMapping("")
-    public List<SkillInfo> listSkills() {
-        String agentId = agentService.getActiveAgentId();
-        return skillService.listWorkspaceSkills(agentId);
+    public List<SkillInfo> listSkills(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        return skillService.listWorkspaceSkills(targetAgentId);
     }
 
-    // ==================== Workspace Skills ====================
+    /**
+     * Refresh skills for the current agent.
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("/refresh")
+    public List<SkillInfo> refreshSkills(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        return skillService.listWorkspaceSkills(targetAgentId);
+    }
+
+    /**
+     * Create a new skill in workspace (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("")
+    public SkillInfo createSkillFrontend(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody CreateSkillRequest request) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            return skillService.createWorkspaceSkill(targetAgentId, request);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+        }
+    }
+
+    /**
+     * Save (create or update) a skill (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PutMapping("/save")
+    public Map<String, Object> saveSkillFrontend(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody SaveSkillRequest request) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            // If source_name is provided and different from name, it's a rename operation
+            if (request.getSourceName() != null && !request.getSourceName().equals(request.getName())) {
+                SkillInfo updated = skillService.updateWorkspaceSkill(targetAgentId, request.getSourceName(), request);
+                return Map.of("success", true, "mode", "rename", "name", updated.getName());
+            }
+            // Otherwise try to update existing skill
+            SkillInfo existing = skillService.getWorkspaceSkill(targetAgentId, request.getName());
+            if (existing != null) {
+                SkillInfo updated = skillService.updateWorkspaceSkill(targetAgentId, request.getName(), request);
+                return Map.of("success", true, "mode", "edit", "name", updated.getName());
+            }
+            // Create new skill
+            CreateSkillRequest createRequest = CreateSkillRequest.builder()
+                    .name(request.getName())
+                    .content(request.getContent())
+                    .config(request.getConfig())
+                    .build();
+            SkillInfo created = skillService.createWorkspaceSkill(targetAgentId, createRequest);
+            return Map.of("success", true, "mode", "create", "name", created.getName());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Enable a skill (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("/{skill_name}/enable")
+    public void enableSkill(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            skillService.enableWorkspaceSkill(targetAgentId, skillName);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Disable a skill (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("/{skill_name}/disable")
+    public void disableSkill(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            skillService.disableWorkspaceSkill(targetAgentId, skillName);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Batch enable skills (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("/batch-enable")
+    public void batchEnableSkills(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody List<String> skillNames) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        for (String skillName : skillNames) {
+            try {
+                skillService.enableWorkspaceSkill(targetAgentId, skillName);
+            } catch (IllegalArgumentException e) {
+                log.warn("Failed to enable skill: {}", skillName, e);
+            }
+        }
+    }
+
+    /**
+     * Batch delete skills (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping("/batch-delete")
+    public Map<String, Object> batchDeleteSkills(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody List<String> skillNames) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        Map<String, Map<String, Object>> results = new java.util.HashMap<>();
+        for (String skillName : skillNames) {
+            boolean deleted = skillService.deleteWorkspaceSkill(targetAgentId, skillName);
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", deleted);
+            if (!deleted) {
+                result.put("reason", "delete_failed");
+            }
+            results.put(skillName, result);
+        }
+        return Map.of("results", results);
+    }
+
+    /**
+     * Get skill config (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @GetMapping("/{skill_name}/config")
+    public Map<String, Object> getSkillConfig(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        // Get skill info and extract config from the skill's manifest entry
+        SkillInfo skill = skillService.getWorkspaceSkill(targetAgentId, skillName);
+        if (skill == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill not found: " + skillName);
+        }
+        // Config is stored in the manifest, we need to read it from there
+        // For now, return empty config (will be populated by updateSkillConfig)
+        return Map.of("config", Map.of());
+    }
+
+    /**
+     * Update skill config (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PutMapping("/{skill_name}/config")
+    public Map<String, Object> updateSkillConfigFrontend(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody Map<String, Object> request) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = (Map<String, Object>) request.get("config");
+        try {
+            skillService.updateSkillConfig(targetAgentId, skillName, config);
+            return Map.of("updated", true);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Delete skill config (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @DeleteMapping("/{skill_name}/config")
+    public Map<String, Object> deleteSkillConfigFrontend(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            skillService.updateSkillConfig(targetAgentId, skillName, Map.of());
+            return Map.of("cleared", true);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Update skill channels (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PutMapping("/{skill_name}/channels")
+    public Map<String, Object> updateSkillChannels(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody List<String> channels) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            skillService.updateSkillConfig(targetAgentId, skillName, 
+                    Map.of("channels", channels != null ? channels : List.of()));
+            return Map.of("updated", true, "channels", channels);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Upload skill from ZIP file (frontend endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadSkill(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "enable", defaultValue = "true") boolean enable,
+            @RequestParam(value = "overwrite", defaultValue = "false") boolean overwrite,
+            @RequestParam(value = "target_name", required = false) String targetName) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        try {
+            byte[] data = file.getBytes();
+            return skillService.importSkillFromZip(targetAgentId, data, targetName, overwrite, enable);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to read uploaded file");
+        }
+    }
+
+    // ==================== Workspace Skills (Legacy API with agent_id in path) ====================
 
     /**
      * List all workspace skill summaries.
@@ -102,12 +358,30 @@ public class SkillsController {
     }
 
     /**
-     * Delete a skill from workspace.
+     * Delete a skill from workspace (legacy endpoint with agent_id in path).
      */
     @DeleteMapping("/workspaces/{agent_id}/skills/{skill_name}")
-    public Map<String, Boolean> deleteSkill(@PathVariable("agent_id") String agentId,
-                                            @PathVariable("skill_name") String skillName) {
+    public Map<String, Boolean> deleteSkillLegacy(@PathVariable("agent_id") String agentId,
+                                                  @PathVariable("skill_name") String skillName) {
         boolean deleted = skillService.deleteWorkspaceSkill(agentId, skillName);
+        if (!deleted) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Failed to delete skill: " + skillName);
+        }
+        return Map.of("deleted", true);
+    }
+
+    /**
+     * Delete a skill from workspace (frontend uses this endpoint).
+     * Supports X-Agent-Id header for agent isolation.
+     */
+    @DeleteMapping("/{skill_name}")
+    public Map<String, Boolean> deleteSkill(
+            @PathVariable("skill_name") String skillName,
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        boolean deleted = skillService.deleteWorkspaceSkill(targetAgentId, skillName);
         if (!deleted) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Failed to delete skill: " + skillName);
         }

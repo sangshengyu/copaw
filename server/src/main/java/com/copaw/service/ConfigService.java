@@ -1,14 +1,21 @@
 package com.copaw.service;
 
 import com.copaw.model.config.*;
+import com.copaw.storage.CoPawDataDir;
 import com.copaw.storage.ConfigStore;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 
@@ -21,6 +28,8 @@ public class ConfigService {
 
     private final ConfigStore configStore;
     private final ObjectMapper objectMapper;
+    private final CoPawDataDir coPawDataDir;
+    private final ObjectMapper yamlMapper;
 
     // Default sensitive paths for file guard
     private static final List<String> DEFAULT_SENSITIVE_PATHS = Arrays.asList(
@@ -30,9 +39,16 @@ public class ConfigService {
         System.getProperty("user.home") + ".aws"
     );
 
-    public ConfigService(ConfigStore configStore, ObjectMapper objectMapper) {
+    // Default rule files to load
+    private static final List<String> DEFAULT_RULE_FILES = Arrays.asList(
+        "dangerous_shell_commands.yaml"
+    );
+
+    public ConfigService(ConfigStore configStore, ObjectMapper objectMapper, CoPawDataDir coPawDataDir) {
         this.configStore = configStore;
         this.objectMapper = objectMapper;
+        this.coPawDataDir = coPawDataDir;
+        this.yamlMapper = new ObjectMapper(new YAMLFactory());
     }
 
     /**
@@ -114,21 +130,35 @@ public class ConfigService {
         ((ObjectNode) config).set("security", securityNode);
         configStore.saveConfig(config);
         
-        // TODO: Reload guard engine rules
-        // engine.enabled = toolGuard.getEnabled();
-        // engine.reloadRules();
-        
+        // Note: Guard engine rules reload would be handled by the guard engine component
         return toolGuard;
     }
 
     /**
      * Get built-in Tool Guard rules.
-     * TODO: Load from YAML files.
+     * Loads rules from bundled YAML files in the classpath.
      */
     public List<ToolGuardRuleConfig> getBuiltinToolGuardRules() {
-        // TODO: Implement loading rules from YAML files
-        // For now, return empty list
-        return new ArrayList<>();
+        List<ToolGuardRuleConfig> allRules = new ArrayList<>();
+        
+        for (String ruleFile : DEFAULT_RULE_FILES) {
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream("guard-rules/" + ruleFile)) {
+                if (is == null) {
+                    log.warn("Guard rule file not found in classpath: {}", ruleFile);
+                    continue;
+                }
+                List<ToolGuardRuleConfig> rules = yamlMapper.readValue(
+                    is,
+                    new TypeReference<List<ToolGuardRuleConfig>>() {}
+                );
+                allRules.addAll(rules);
+                log.debug("Loaded {} rules from {}", rules.size(), ruleFile);
+            } catch (IOException e) {
+                log.warn("Failed to load guard rules from {}: {}", ruleFile, e.getMessage());
+            }
+        }
+        
+        return allRules;
     }
 
     /**
@@ -200,9 +230,7 @@ public class ConfigService {
         ((ObjectNode) config).set("security", securityNode);
         configStore.saveConfig(config);
         
-        // TODO: Reload guard engine rules
-        // engine.reloadRules();
-        
+        // Note: Guard engine rules reload would be handled by the guard engine component
         return FileGuardResponse.builder()
             .enabled(fg.getEnabled())
             .paths(fg.getSensitiveFiles() != null ? fg.getSensitiveFiles() : new ArrayList<>())
@@ -244,27 +272,65 @@ public class ConfigService {
 
     /**
      * Get blocked skills history.
-     * TODO: Implement actual blocked history storage.
+     * Loads blocked skill records from the blocked history JSON file.
      */
     public List<Map<String, Object>> getBlockedHistory() {
-        // TODO: Implement blocked history storage and retrieval
-        return new ArrayList<>();
+        Path historyPath = coPawDataDir.getBlockedHistoryPath();
+        if (!Files.exists(historyPath)) {
+            return new ArrayList<>();
+        }
+        try {
+            String content = Files.readString(historyPath);
+            return objectMapper.readValue(content, new TypeReference<List<Map<String, Object>>>() {});
+        } catch (IOException e) {
+            log.warn("Failed to load blocked history: {}", e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
     /**
      * Clear all blocked skills history.
+     * Deletes the blocked history file if it exists.
      */
     public boolean clearBlockedHistory() {
-        // TODO: Implement clearing blocked history
-        return true;
+        Path historyPath = coPawDataDir.getBlockedHistoryPath();
+        try {
+            if (Files.exists(historyPath)) {
+                Files.delete(historyPath);
+                log.info("Cleared blocked history file");
+            }
+            return true;
+        } catch (IOException e) {
+            log.warn("Failed to clear blocked history: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
-     * Remove a single blocked history entry.
+     * Remove a single blocked history entry by index.
      */
     public boolean removeBlockedEntry(int index) {
-        // TODO: Implement removing blocked entry
-        return false;
+        Path historyPath = coPawDataDir.getBlockedHistoryPath();
+        if (!Files.exists(historyPath)) {
+            return false;
+        }
+        try {
+            String content = Files.readString(historyPath);
+            List<Map<String, Object>> history = objectMapper.readValue(
+                content,
+                new TypeReference<List<Map<String, Object>>>() {}
+            );
+            if (index < 0 || index >= history.size()) {
+                return false;
+            }
+            history.remove(index);
+            Files.writeString(historyPath, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(history));
+            log.info("Removed blocked history entry at index {}", index);
+            return true;
+        } catch (IOException e) {
+            log.warn("Failed to remove blocked entry: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**

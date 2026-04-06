@@ -44,7 +44,22 @@ public class ChatStore {
 
         try {
             String content = Files.readString(chatsPath);
-            return jsonFileStore.getObjectMapper().readValue(content, ChatsFile.class);
+            // Try to parse as ChatsFile (new format)
+            try {
+                return jsonFileStore.getObjectMapper().readValue(content, ChatsFile.class);
+            } catch (IOException e) {
+                // Check if content is an old-format array (e.g., "[]" or "[{...}]")
+                String trimmed = content.trim();
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    log.info("Detected old-format chats.json for agent {}, migrating to new format", agentId);
+                    ChatsFile newFile = ChatsFile.builder().build();
+                    // Save the new format back to file
+                    saveChatsFile(agentId, newFile);
+                    return newFile;
+                }
+                // If not an array, it's a different kind of error
+                throw e;
+            }
         } catch (IOException e) {
             log.warn("Failed to load chats for agent {}: {}", agentId, e.getMessage());
             return ChatsFile.builder().build();

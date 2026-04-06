@@ -1,6 +1,7 @@
 package com.copaw.controller;
 
 import com.copaw.model.provider.ActiveModelsInfo;
+import com.copaw.model.provider.ModelSlotConfig;
 import com.copaw.model.provider.ProviderInfo;
 import com.copaw.model.provider.dto.*;
 import com.copaw.service.ProviderService;
@@ -165,18 +166,35 @@ public class ProvidersController {
      */
     @GetMapping("/active")
     public ActiveModelsInfo getActiveModels(
-            @RequestParam(required = false, defaultValue = "effective") String scope,
-            @RequestParam(required = false) String agentId) {
-        // For now, only support "global" and "effective" scope
-        // "agent" scope requires agent-specific config which is not implemented yet
+            @RequestParam(name = "scope", required = false, defaultValue = "effective") String scope,
+            @RequestParam(name = "agent_id", required = false) String agentId) {
+        // scope: "global" - global model only
+        // scope: "agent" - agent-specific model only (error if not set)
+        // scope: "effective" - agent-specific first, fallback to global
+
+        if ("global".equals(scope)) {
+            return providerService.getActiveModels();
+        }
+
         if ("agent".equals(scope)) {
             if (agentId == null || agentId.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agent_id is required when scope is 'agent'");
             }
-            // TODO: Load agent-specific model config
-            // For now, fall through to effective
+            ModelSlotConfig agentModel = providerService.getAgentActiveModel(agentId);
+            if (agentModel == null) {
+                return ActiveModelsInfo.builder().build();
+            }
+            return ActiveModelsInfo.builder()
+                    .activeLlm(agentModel)
+                    .build();
         }
-        return providerService.getActiveModels();
+
+        // "effective" scope: agent-specific first, fallback to global
+        String targetAgentId = agentId;
+        if (targetAgentId == null || targetAgentId.isEmpty()) {
+            targetAgentId = "default";
+        }
+        return providerService.getEffectiveActiveModel(targetAgentId);
     }
 
     /**
@@ -200,19 +218,21 @@ public class ProvidersController {
             if (request.getAgentId() == null || request.getAgentId().isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agent_id is required when scope is 'agent'");
             }
-            // Validate model slot
-            if (!providerService.hasModel(request.getProviderId(), request.getModel())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, 
-                    "Model '" + request.getModel() + "' not found in provider '" + request.getProviderId() + "'");
+            try {
+                ModelSlotConfig agentModel = providerService.setAgentActiveModel(
+                        request.getAgentId(),
+                        request.getProviderId(),
+                        request.getModel());
+                return ActiveModelsInfo.builder()
+                        .activeLlm(agentModel)
+                        .build();
+            } catch (IllegalArgumentException e) {
+                String msg = e.getMessage();
+                if (msg != null && msg.toLowerCase().contains("not found")) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, msg);
+                }
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, msg);
             }
-            // TODO: Save to agent-specific config
-            // For now, just return the requested config
-            return ActiveModelsInfo.builder()
-                .activeLlm(com.copaw.model.provider.ModelSlotConfig.builder()
-                    .providerId(request.getProviderId())
-                    .model(request.getModel())
-                    .build())
-                .build();
         }
 
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid scope: " + request.getScope());

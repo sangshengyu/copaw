@@ -1,5 +1,6 @@
 package com.copaw.model.console;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatRequest {
     
     /**
@@ -71,6 +73,19 @@ public class ChatRequest {
      */
     @JsonProperty("meta")
     private Map<String, Object> meta;
+    
+    /**
+     * Input messages array (for @agentscope-ai/chat format)
+     * Each item has: role, content (string or array of blocks)
+     */
+    @JsonProperty("input")
+    private List<Map<String, Object>> input;
+    
+    /**
+     * Whether to stream the response
+     */
+    @JsonProperty("stream")
+    private Boolean stream;
     
     /**
      * File attachment info

@@ -3,6 +3,7 @@ package com.copaw.model.agent;
 import com.copaw.model.config.*;
 import com.copaw.model.mcp.MCPConfig;
 import com.copaw.model.provider.ModelSlotConfig;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AgentProfileConfig {
     @JsonProperty("id")
     private String id;

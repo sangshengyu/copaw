@@ -7,9 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Tool Guard rule configuration.
@@ -28,7 +26,7 @@ public class ToolGuardRuleConfig {
 
     @JsonProperty("params")
     @Builder.Default
-    private Map<String, Object> params = new HashMap<>();
+    private List<String> params = new ArrayList<>();
 
     @JsonProperty("category")
     private String category;

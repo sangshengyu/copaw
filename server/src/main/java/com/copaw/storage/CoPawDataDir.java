@@ -139,12 +139,12 @@ public class CoPawDataDir {
     }
 
     /**
-     * Get the active_llm.json path.
+     * Get the active_model.json path.
      *
-     * @return the active_llm.json file path
+     * @return the active_model.json file path
      */
     public Path getActiveLlmPath() {
-        return secretDir.resolve("active_llm.json");
+        return secretDir.resolve("active_model.json");
     }
 
     /**
@@ -239,6 +239,15 @@ public class CoPawDataDir {
      */
     public Path getLogsDir() {
         return dataDir.resolve("logs");
+    }
+
+    /**
+     * Get the blocked history file path for skill scanner.
+     *
+     * @return the blocked history file path
+     */
+    public Path getBlockedHistoryPath() {
+        return dataDir.resolve("skill_scanner_blocked.json");
     }
 
     /**

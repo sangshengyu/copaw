@@ -16,4 +16,10 @@ import lombok.NoArgsConstructor;
 public class TestModelRequest {
     @JsonProperty("model_id")
     private String modelId;
+
+    @JsonProperty("api_key")
+    private String apiKey;
+
+    @JsonProperty("base_url")
+    private String baseUrl;
 }

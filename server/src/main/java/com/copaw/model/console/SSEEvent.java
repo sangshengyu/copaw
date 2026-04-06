@@ -1,155 +1,185 @@
 package com.copaw.model.console;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 
 /**
- * SSE event payload structure.
- * Must match Python version for frontend compatibility.
+ * Helper class to build SSE event payloads compatible with the AgentScope Runtime protocol.
+ *
+ * The frontend {@code @agentscope-ai/chat} library expects three object types:
+ * <ul>
+ *   <li>{@code object: "message"} – creates or updates a message in the output list</li>
+ *   <li>{@code object: "content"} – streams delta content into an existing message</li>
+ *   <li>{@code object: "response"} – marks the overall response as completed/failed</li>
+ * </ul>
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class SSEEvent {
-    
+public final class SSEEvent {
+
+    private SSEEvent() { /* utility class */ }
+
+    // -----------------------------------------------------------------------
+    // message object helpers
+    // -----------------------------------------------------------------------
+
     /**
-     * Event type
+     * Create a new runtime message with initial delta content.
+     *
+     * @param msgId   stable message id (reuse across chunks of the same logical message)
+     * @param msgType "message", "reasoning", "plugin_call", "plugin_call_output", etc.
+     * @param text    initial text content
+     * @return a Map representing the JSON payload
      */
-    @JsonProperty("type")
-    private String type;
-    
-    /**
-     * Text content for thinking/text events
-     */
-    @JsonProperty("text")
-    private String text;
-    
-    /**
-     * Tool call ID
-     */
-    @JsonProperty("tool_call_id")
-    private String toolCallId;
-    
-    /**
-     * Tool name
-     */
-    @JsonProperty("name")
-    private String name;
-    
-    /**
-     * Tool input arguments
-     */
-    @JsonProperty("input")
-    private Map<String, Object> input;
-    
-    /**
-     * Tool output/result
-     */
-    @JsonProperty("output")
-    private Object output;
-    
-    /**
-     * Content blocks (for complex responses)
-     */
-    @JsonProperty("content")
-    private List<Map<String, Object>> content;
-    
-    /**
-     * Whether this is the last event in the stream
-     */
-    @JsonProperty("last")
-    private Boolean last;
-    
-    /**
-     * Error message (for error events)
-     */
-    @JsonProperty("error")
-    private String error;
-    
-    /**
-     * Session ID
-     */
-    @JsonProperty("session_id")
-    private String sessionId;
-    
-    /**
-     * Agent ID
-     */
-    @JsonProperty("agent_id")
-    private String agentId;
-    
-    /**
-     * Create a thinking event
-     */
-    public static SSEEvent thinking(String text, boolean last) {
-        return SSEEvent.builder()
-                .type(SSEEventType.THINKING.getValue())
-                .text(text)
-                .last(last)
-                .build();
+    public static Map<String, Object> newMessage(String msgId, String msgType, String text) {
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("object", "content");
+        content.put("type", "text");
+        content.put("text", text != null ? text : "");
+        content.put("delta", true);
+        content.put("status", "in_progress");
+
+        Map<String, Object> msg = new LinkedHashMap<>();
+        msg.put("object", "message");
+        msg.put("id", msgId);
+        msg.put("type", msgType);
+        msg.put("role", "assistant");
+        msg.put("content", List.of(content));
+        msg.put("status", "in_progress");
+        return msg;
     }
-    
+
     /**
-     * Create a text event
+     * Create a delta content chunk that appends text to an existing message.
      */
-    public static SSEEvent text(String text, boolean last) {
-        return SSEEvent.builder()
-                .type(SSEEventType.TEXT.getValue())
-                .text(text)
-                .last(last)
-                .build();
+    public static Map<String, Object> contentDelta(String msgId, String text) {
+        Map<String, Object> c = new LinkedHashMap<>();
+        c.put("object", "content");
+        c.put("type", "text");
+        c.put("text", text != null ? text : "");
+        c.put("delta", true);
+        c.put("msg_id", msgId);
+        c.put("status", "in_progress");
+        return c;
     }
-    
+
     /**
-     * Create a tool call event
+     * Mark an existing message as completed with full accumulated content.
+     *
+     * @param msgId           stable message id
+     * @param msgType         "message", "reasoning", etc.
+     * @param accumulatedText the full text accumulated during streaming
+     * @return a Map representing the completed message payload
      */
-    public static SSEEvent toolCall(String toolCallId, String name, Map<String, Object> input) {
-        return SSEEvent.builder()
-                .type(SSEEventType.TOOL_CALL.getValue())
-                .toolCallId(toolCallId)
-                .name(name)
-                .input(input)
-                .build();
+    public static Map<String, Object> messageCompleted(String msgId, String msgType, String accumulatedText) {
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("object", "content");
+        content.put("type", "text");
+        content.put("text", accumulatedText != null ? accumulatedText : "");
+        content.put("delta", false);
+        content.put("status", "completed");
+
+        Map<String, Object> msg = new LinkedHashMap<>();
+        msg.put("object", "message");
+        msg.put("id", msgId);
+        msg.put("type", msgType);
+        msg.put("role", "assistant");
+        msg.put("content", List.of(content));
+        msg.put("status", "completed");
+        return msg;
     }
-    
+
+    // -----------------------------------------------------------------------
+    // tool call / tool result helpers
+    // -----------------------------------------------------------------------
+
     /**
-     * Create a tool result event
+     * Create a plugin_call message (tool invocation).
      */
-    public static SSEEvent toolResult(String toolCallId, Object output) {
-        return SSEEvent.builder()
-                .type(SSEEventType.TOOL_RESULT.getValue())
-                .toolCallId(toolCallId)
-                .output(output)
-                .build();
+    public static Map<String, Object> toolCallMessage(String msgId, String callId, String name, String arguments) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("call_id", callId);
+        data.put("name", name);
+        data.put("arguments", arguments);
+
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("object", "content");
+        content.put("type", "data");
+        content.put("data", data);
+        content.put("delta", false);
+        content.put("status", "in_progress");
+
+        Map<String, Object> msg = new LinkedHashMap<>();
+        msg.put("object", "message");
+        msg.put("id", msgId);
+        msg.put("type", "plugin_call");
+        msg.put("role", "assistant");
+        msg.put("content", List.of(content));
+        msg.put("status", "in_progress");
+        return msg;
     }
-    
+
     /**
-     * Create a done event
+     * Create a plugin_call_output message (tool result).
      */
-    public static SSEEvent done() {
-        return SSEEvent.builder()
-                .type(SSEEventType.DONE.getValue())
-                .last(true)
-                .build();
+    public static Map<String, Object> toolResultMessage(String msgId, String callId, String name, String output) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("call_id", callId);
+        data.put("name", name);
+        data.put("output", output);
+
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("object", "content");
+        content.put("type", "data");
+        content.put("data", data);
+        content.put("delta", false);
+        content.put("status", "completed");
+
+        Map<String, Object> msg = new LinkedHashMap<>();
+        msg.put("object", "message");
+        msg.put("id", msgId);
+        msg.put("type", "plugin_call_output");
+        msg.put("role", "assistant");
+        msg.put("content", List.of(content));
+        msg.put("status", "completed");
+        return msg;
     }
-    
+
+    // -----------------------------------------------------------------------
+    // response object helpers
+    // -----------------------------------------------------------------------
+
     /**
-     * Create an error event
+     * Create a response-completed event that tells the frontend the stream is done.
+     * The output list MUST contain all completed messages with their full content,
+     * matching the Python AgentScope Runtime protocol.
+     *
+     * @param completedMessages list of completed message Maps (from {@link #messageCompleted})
+     * @return a Map representing the response-completed payload
      */
-    public static SSEEvent error(String message) {
-        return SSEEvent.builder()
-                .type(SSEEventType.ERROR.getValue())
-                .error(message)
-                .last(true)
-                .build();
+    public static Map<String, Object> responseCompleted(List<Map<String, Object>> completedMessages) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("object", "response");
+        r.put("id", "response_" + UUID.randomUUID());
+        r.put("status", "completed");
+        r.put("created_at", Instant.now().getEpochSecond());
+        r.put("output", completedMessages != null ? completedMessages : List.of());
+        return r;
+    }
+
+    /**
+     * Create a response-failed event for fatal errors.
+     */
+    public static Map<String, Object> responseFailed(String errorMessage) {
+        Map<String, Object> error = new LinkedHashMap<>();
+        error.put("code", "stream_error");
+        error.put("message", errorMessage != null ? errorMessage : "Unknown error");
+
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("object", "response");
+        r.put("id", "response_" + UUID.randomUUID());
+        r.put("status", "failed");
+        r.put("created_at", Instant.now().getEpochSecond());
+        r.put("output", List.of());
+        r.put("error", error);
+        return r;
     }
 }

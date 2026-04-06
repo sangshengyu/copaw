@@ -7,7 +7,6 @@ import com.copaw.service.ProviderService;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.memory.Memory;
-import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.OpenAIChatModel;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.tool.Toolkit;
@@ -100,33 +99,66 @@ public class CoPawAgentEngine {
      * Create the appropriate chat model based on configuration.
      */
     private Model createModel(AgentProfileConfig config, ProviderService providerService) {
-        String providerId = config.getActiveModel() != null 
-                ? config.getActiveModel().getProviderId() 
-                : "dashscope";
-        String modelName = config.getActiveModel() != null 
-                ? config.getActiveModel().getModel() 
-                : "qwen3-max";
+        // Get effective active model for this agent (agent-specific or global fallback)
+        var activeModelsInfo = providerService.getEffectiveActiveModel(config.getId());
+        var activeModel = activeModelsInfo.getActiveLlm();
         
-        // Get API key from provider service
-        // TODO: Get actual API key from ProviderService
-        String apiKey = System.getenv("DASHSCOPE_API_KEY");
-        if (apiKey == null) {
-            apiKey = "sk-placeholder"; // Placeholder for compilation
+        String providerId;
+        String modelName;
+        
+        if (activeModel != null && activeModel.getProviderId() != null && !activeModel.getProviderId().isEmpty()) {
+            providerId = activeModel.getProviderId();
+            modelName = activeModel.getModel();
+        } else {
+            // Fallback to agent config or defaults
+            providerId = config.getActiveModel() != null 
+                    ? config.getActiveModel().getProviderId() 
+                    : "dashscope";
+            modelName = config.getActiveModel() != null 
+                    ? config.getActiveModel().getModel() 
+                    : "qwen3-max";
         }
         
+        // Get provider info to retrieve API key and base URL (use raw provider to get unmasked API key)
+        var providerInfo = providerService.getRawProvider(providerId);
+        if (providerInfo == null) {
+            throw new IllegalStateException("Provider '" + providerId + "' not found");
+        }
+        
+        // Get API key with priority: provider config > environment variable
+        String apiKey = providerInfo.getApiKey();
+        if (apiKey == null || apiKey.isEmpty()) {
+            apiKey = System.getenv("DASHSCOPE_API_KEY");
+        }
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw new IllegalStateException(
+                "API key not found for provider '" + providerId + "'. " +
+                "Please configure the API key in provider settings or set DASHSCOPE_API_KEY environment variable."
+            );
+        }
+        
+        // Get base URL from provider config
+        String baseUrl = providerInfo.getBaseUrl();
+        
         if ("dashscope".equals(providerId)) {
-            return DashScopeChatModel.builder()
+            // Use OpenAI-compatible endpoint for DashScope
+            // This provides better compatibility with the rest of the system
+            // which uses OpenAI-style /models and /chat/completions endpoints
+            String openAiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+            if (baseUrl != null && baseUrl.contains("/compatible-mode")) {
+                openAiBaseUrl = baseUrl;
+            }
+            return OpenAIChatModel.builder()
                     .apiKey(apiKey)
                     .modelName(modelName)
+                    .baseUrl(openAiBaseUrl)
                     .build();
         } else {
             // Default to OpenAI-compatible endpoint
             return OpenAIChatModel.builder()
                     .apiKey(apiKey)
                     .modelName(modelName)
-                    .baseUrl(providerService.getProvider(providerId) != null 
-                            ? providerService.getProvider(providerId).getBaseUrl() 
-                            : null)
+                    .baseUrl(baseUrl)
                     .build();
         }
     }

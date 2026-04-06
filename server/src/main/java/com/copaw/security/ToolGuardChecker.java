@@ -7,7 +7,7 @@ import io.agentscope.core.hook.Hook;
 import io.agentscope.core.hook.HookEvent;
 import io.agentscope.core.hook.ActingEvent;
 import io.agentscope.core.hook.PreActingEvent;
-import io.agentscope.core.tool.ToolCallParam;
+import io.agentscope.core.message.ToolUseBlock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -261,10 +261,67 @@ public class ToolGuardChecker implements Hook {
 
         // Handle pre-acting events to intercept tool calls
         if (event instanceof PreActingEvent preActingEvent) {
-            // TODO: Extract tool call info from event and validate
-            // This requires access to tool call parameters from the event
-            // For now, pass through - full implementation depends on AgentScope event structure
-            log.debug("PreActingEvent intercepted for validation");
+            // Extract tool call information from the event
+            ToolUseBlock toolUse = preActingEvent.getToolUse();
+            if (toolUse != null) {
+                String toolName = toolUse.getName();
+                Map<String, Object> toolInput = toolUse.getInput();
+
+                log.debug("Validating tool call: {} with input: {}", toolName, toolInput);
+
+                // Validate the tool call against security rules
+                ValidationResult result = validate(toolName, toolInput);
+
+                if (!result.isAllowed()) {
+                    log.warn("ToolGuard blocked tool '{}' with rule '{}': {}",
+                            toolName, result.getRuleId(), result.getMessage());
+
+                    // Return error as exception to block the tool execution
+                    return Mono.error(new ToolGuardException(
+                            String.format("Tool '%s' blocked: %s", toolName, result.getMessage()),
+                            result.getRuleId(),
+                            result.getSeverity()
+                    ));
+                }
+
+                // Additional validation for shell commands
+                if (toolName != null && toolName.toLowerCase().contains("shell")) {
+                    Object commandObj = toolInput != null ? toolInput.get("command") : null;
+                    if (commandObj instanceof String command) {
+                        ValidationResult shellResult = validateShellCommand(command);
+                        if (!shellResult.isAllowed()) {
+                            log.warn("ToolGuard blocked shell command in tool '{}' with rule '{}': {}",
+                                    toolName, shellResult.getRuleId(), shellResult.getMessage());
+
+                            return Mono.error(new ToolGuardException(
+                                    String.format("Shell command blocked: %s", shellResult.getMessage()),
+                                    shellResult.getRuleId(),
+                                    shellResult.getSeverity()
+                            ));
+                        }
+                    }
+                }
+
+                // Additional validation for file operations
+                if (toolName != null && (toolName.toLowerCase().contains("file") || toolName.toLowerCase().contains("read") || toolName.toLowerCase().contains("write"))) {
+                    Object pathObj = toolInput != null ? toolInput.get("path") : null;
+                    if (pathObj instanceof String path) {
+                        ValidationResult pathResult = validateFilePath(path, null);
+                        if (!pathResult.isAllowed()) {
+                            log.warn("ToolGuard blocked file path in tool '{}' with rule '{}': {}",
+                                    toolName, pathResult.getRuleId(), pathResult.getMessage());
+
+                            return Mono.error(new ToolGuardException(
+                                    String.format("File path blocked: %s", pathResult.getMessage()),
+                                    pathResult.getRuleId(),
+                                    pathResult.getSeverity()
+                            ));
+                        }
+                    }
+                }
+
+                log.debug("Tool call validated successfully: {}", toolName);
+            }
         }
 
         return Mono.just(event);
