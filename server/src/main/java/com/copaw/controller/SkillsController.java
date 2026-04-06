@@ -443,6 +443,134 @@ public class SkillsController {
     }
 
     /**
+     * Refresh pool skills - force reconcile and return updated list.
+     */
+    @PostMapping("/pool/refresh")
+    public List<PoolSkillSpec> refreshPoolSkills() {
+        return skillService.reconcilePoolManifest();
+    }
+
+    /**
+     * Delete a pool skill.
+     * Frontend calls DELETE /skills/pool/{skill_name}.
+     */
+    @DeleteMapping("/pool/{skill_name}")
+    public Map<String, Boolean> deletePoolSkill(@PathVariable("skill_name") String skillName) {
+        boolean deleted = skillService.deletePoolSkill(skillName);
+        if (!deleted) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Skill pool entry cannot be deleted");
+        }
+        return Map.of("deleted", true);
+    }
+
+    /**
+     * Batch delete pool skills.
+     * Frontend calls POST /skills/pool/batch-delete.
+     */
+    @PostMapping("/pool/batch-delete")
+    public Map<String, Object> batchDeletePoolSkills(@RequestBody List<String> skillNames) {
+        Map<String, Map<String, Object>> results = skillService.batchDeletePoolSkills(skillNames);
+        return Map.of("results", results);
+    }
+
+    /**
+     * Create a pool skill.
+     * Frontend calls POST /skills/pool/create.
+     */
+    @PostMapping("/pool/create")
+    public Map<String, Object> createPoolSkill(@RequestBody CreateSkillRequest request) {
+        Map<String, Object> result = skillService.createPoolSkill(request);
+        if (!Boolean.TRUE.equals(result.get("created"))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Skill already exists");
+        }
+        return result;
+    }
+
+    /**
+     * Save/edit a pool skill.
+     * Frontend calls PUT /skills/pool/save.
+     */
+    @PutMapping("/pool/save")
+    public Map<String, Object> savePoolSkill(@RequestBody SaveSkillRequest request) {
+        Map<String, Object> result = skillService.savePoolSkill(request);
+        if (!Boolean.TRUE.equals(result.get("success"))) {
+            String reason = (String) result.get("reason");
+            HttpStatus status = "not_found".equals(reason) ? HttpStatus.NOT_FOUND : HttpStatus.CONFLICT;
+            throw new ResponseStatusException(status, reason);
+        }
+        return result;
+    }
+
+    /**
+     * Get pool builtin sources.
+     * Frontend calls GET /skills/pool/builtin-sources.
+     */
+    @GetMapping("/pool/builtin-sources")
+    public List<BuiltinImportSpec> listPoolBuiltinSources() {
+        return skillService.listBuiltinCandidates();
+    }
+
+    /**
+     * Import selected builtin skills into pool.
+     * Frontend calls POST /skills/pool/import-builtin.
+     */
+    @PostMapping("/pool/import-builtin")
+    public Map<String, Object> importPoolBuiltins(@RequestBody ImportBuiltinRequest request) {
+        return skillService.importBuiltinSkills(request);
+    }
+
+    /**
+     * Update a single builtin pool skill.
+     * Frontend calls POST /skills/pool/{skill_name}/update-builtin.
+     */
+    @PostMapping("/pool/{skill_name}/update-builtin")
+    public Map<String, Object> updatePoolBuiltin(@PathVariable("skill_name") String skillName) {
+        try {
+            return skillService.updateSingleBuiltin(skillName);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    /**
+     * Get pool skill config.
+     * Frontend calls GET /skills/pool/{skill_name}/config.
+     */
+    @GetMapping("/pool/{skill_name}/config")
+    public Map<String, Object> getPoolSkillConfig(@PathVariable("skill_name") String skillName) {
+        SkillSpec spec = skillService.getPoolSkill(skillName);
+        if (spec == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pool skill not found");
+        }
+        Map<String, Object> config = spec.getConfig() != null ? spec.getConfig() : Map.of();
+        return Map.of("config", config);
+    }
+
+    /**
+     * Update pool skill config.
+     * Frontend calls PUT /skills/pool/{skill_name}/config.
+     */
+    @PutMapping("/pool/{skill_name}/config")
+    public Map<String, Object> updatePoolSkillConfig(
+            @PathVariable("skill_name") String skillName,
+            @RequestBody Map<String, Object> request) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = (Map<String, Object>) request.get("config");
+        skillService.updatePoolSkillConfig(skillName, config);
+        return Map.of("updated", true);
+    }
+
+    /**
+     * Delete pool skill config.
+     * Frontend calls DELETE /skills/pool/{skill_name}/config.
+     */
+    @DeleteMapping("/pool/{skill_name}/config")
+    public Map<String, Object> deletePoolSkillConfig(@PathVariable("skill_name") String skillName) {
+        skillService.updatePoolSkillConfig(skillName, null);
+        return Map.of("cleared", true);
+    }
+
+    /**
      * Download skill from pool to workspaces.
      */
     @PostMapping("/pool/download")
@@ -496,6 +624,23 @@ public class SkillsController {
         return Map.of("success", true);
     }
 
+    /**
+     * Import skill from hub URL directly into the pool.
+     */
+    @PostMapping("/pool/import")
+    public Map<String, Object> importPoolSkillFromHub(@RequestBody HubInstallRequest request) {
+        try {
+            return skillService.importPoolSkillFromHub(request);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("already exists")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
     // ==================== Hub Skills ====================
 
     /**
@@ -508,19 +653,25 @@ public class SkillsController {
     }
 
     /**
-     * Install skill from hub.
+     * Install skill from hub (start async task).
+     * Frontend calls POST /hub/install/start.
      */
-    @PostMapping("/hub/install")
-    public HubInstallTask installFromHub(@RequestParam("agent_id") String agentId,
-                                          @RequestBody HubInstallRequest request) {
-        return skillService.installFromHub(agentId, request);
+    @PostMapping("/hub/install/start")
+    public HubInstallTask installFromHub(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentId,
+            @RequestBody HubInstallRequest request) {
+        String targetAgentId = (agentId != null && !agentId.isBlank())
+                ? agentId
+                : agentService.getActiveAgentId();
+        return skillService.installFromHub(targetAgentId, request);
     }
 
     /**
      * Get hub install task status.
+     * Frontend calls GET /hub/install/status/{task_id}.
      */
-    @GetMapping("/hub/install-tasks/{task_id}")
-    public HubInstallTask getHubInstallTask(@PathVariable("task_id") String taskId) {
+    @GetMapping("/hub/install/status/{task_id}")
+    public HubInstallTask getHubInstallStatus(@PathVariable("task_id") String taskId) {
         HubInstallTask task = skillService.getHubInstallTask(taskId);
         if (task == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Install task not found: " + taskId);
@@ -530,11 +681,19 @@ public class SkillsController {
 
     /**
      * Cancel hub install task.
+     * Frontend calls POST /hub/install/cancel/{task_id}.
      */
-    @DeleteMapping("/hub/install-tasks/{task_id}")
-    public Map<String, Boolean> cancelHubInstallTask(@PathVariable("task_id") String taskId) {
+    @PostMapping("/hub/install/cancel/{task_id}")
+    public Map<String, Object> cancelHubInstall(@PathVariable("task_id") String taskId) {
+        HubInstallTask task = skillService.getHubInstallTask(taskId);
+        if (task == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Install task not found: " + taskId);
+        }
         boolean cancelled = skillService.cancelHubInstallTask(taskId);
-        return Map.of("cancelled", cancelled);
+        return Map.of(
+                "task_id", taskId,
+                "status", cancelled ? "cancelled" : task.getStatus()
+        );
     }
 
     // ==================== Builtin Skills ====================

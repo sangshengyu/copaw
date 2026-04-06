@@ -6,7 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,6 +35,20 @@ public class SkillInfo {
 
     @JsonProperty("source")
     private String source;
+
+    @JsonProperty("enabled")
+    @Builder.Default
+    private Boolean enabled = false;
+
+    @JsonProperty("channels")
+    @Builder.Default
+    private List<String> channels = new ArrayList<>();
+
+    @JsonProperty("config")
+    private Map<String, Object> config;
+
+    @JsonProperty("last_updated")
+    private String lastUpdated;
 
     @JsonProperty("references")
     @Builder.Default

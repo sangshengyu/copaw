@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Skill specification for storage.
@@ -63,6 +64,9 @@ public class SkillSpec {
 
     @JsonProperty("updated_at")
     private String updatedAt;
+
+    @JsonProperty("config")
+    private Map<String, Object> config;
 
     /**
      * Skill requirements specification.
