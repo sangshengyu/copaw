@@ -56,22 +56,28 @@ public class CoPawDataDir {
     }
 
     /**
-     * Get the agents directory path.
+     * Get the workspaces directory path (where all agent workspaces live).
+     * This is the canonical parent directory for all agents, matching Python's
+     * ~/.copaw/workspaces/ structure.
      *
-     * @return the agents directory path
+     * @return the workspaces directory path
+     * @deprecated Use {@link #getWorkspacesDir()} instead. This method exists
+     *             only for backward compatibility during migration.
      */
+    @Deprecated
     public Path getAgentsDir() {
-        return dataDir.resolve("agents");
+        return getWorkspacesDir();
     }
 
     /**
      * Get a specific agent's directory path.
+     * Returns workspaces/{agentId} to match Python's layout.
      *
      * @param agentId the agent ID
      * @return the agent directory path
      */
     public Path getAgentDir(String agentId) {
-        return getAgentsDir().resolve(agentId);
+        return getWorkspacesDir().resolve(agentId);
     }
 
     /**

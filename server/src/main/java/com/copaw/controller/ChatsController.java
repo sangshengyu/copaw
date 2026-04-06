@@ -3,6 +3,7 @@ package com.copaw.controller;
 import com.copaw.model.chat.ChatHistory;
 import com.copaw.model.chat.ChatSpec;
 import com.copaw.model.chat.ChatUpdate;
+import com.copaw.service.AgentService;
 import com.copaw.service.ChatService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +20,17 @@ import java.util.Map;
 public class ChatsController {
 
     private final ChatService chatService;
+    private final AgentService agentService;
 
-    public ChatsController(ChatService chatService) {
+    public ChatsController(ChatService chatService, AgentService agentService) {
         this.chatService = chatService;
+        this.agentService = agentService;
+    }
+
+    private String resolveAgentId(String agentIdHeader) {
+        return (agentIdHeader != null && !agentIdHeader.isBlank())
+                ? agentIdHeader
+                : agentService.getActiveAgentId();
     }
 
     /**
@@ -30,9 +39,10 @@ public class ChatsController {
      */
     @GetMapping
     public List<ChatSpec> listChats(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "user_id", required = false) String userId,
             @RequestParam(value = "channel", required = false) String channel) {
-        return chatService.listChats(userId, channel);
+        return chatService.listChats(resolveAgentId(agentIdHeader), userId, channel);
     }
 
     /**
@@ -40,8 +50,10 @@ public class ChatsController {
      * POST /chats
      */
     @PostMapping
-    public ChatSpec createChat(@RequestBody ChatSpec spec) {
-        return chatService.createChat(spec);
+    public ChatSpec createChat(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody ChatSpec spec) {
+        return chatService.createChat(resolveAgentId(agentIdHeader), spec);
     }
 
     /**
@@ -49,8 +61,10 @@ public class ChatsController {
      * GET /chats/{chat_id}
      */
     @GetMapping("/{chat_id}")
-    public ChatHistory getChat(@PathVariable("chat_id") String chatId) {
-        ChatHistory history = chatService.getChatHistory(chatId);
+    public ChatHistory getChat(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("chat_id") String chatId) {
+        ChatHistory history = chatService.getChatHistory(resolveAgentId(agentIdHeader), chatId);
         if (history == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat not found: " + chatId);
         }
@@ -63,9 +77,10 @@ public class ChatsController {
      */
     @PutMapping("/{chat_id}")
     public ChatSpec updateChat(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @PathVariable("chat_id") String chatId,
             @RequestBody ChatUpdate update) {
-        ChatSpec updated = chatService.updateChat(chatId, update);
+        ChatSpec updated = chatService.updateChat(resolveAgentId(agentIdHeader), chatId, update);
         if (updated == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat not found: " + chatId);
         }
@@ -77,8 +92,10 @@ public class ChatsController {
      * DELETE /chats/{chat_id}
      */
     @DeleteMapping("/{chat_id}")
-    public Map<String, Object> deleteChat(@PathVariable("chat_id") String chatId) {
-        boolean deleted = chatService.deleteChat(chatId);
+    public Map<String, Object> deleteChat(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("chat_id") String chatId) {
+        boolean deleted = chatService.deleteChat(resolveAgentId(agentIdHeader), chatId);
         if (!deleted) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat not found: " + chatId);
         }
@@ -90,8 +107,10 @@ public class ChatsController {
      * POST /chats/batch-delete
      */
     @PostMapping("/batch-delete")
-    public Map<String, Object> batchDeleteChats(@RequestBody List<String> chatIds) {
-        boolean deleted = chatService.deleteChats(chatIds);
+    public Map<String, Object> batchDeleteChats(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody List<String> chatIds) {
+        boolean deleted = chatService.deleteChats(resolveAgentId(agentIdHeader), chatIds);
         return Map.of("deleted", deleted);
     }
 }

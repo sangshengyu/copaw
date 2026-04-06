@@ -39,10 +39,12 @@ public class AgentController {
     }
 
     /**
-     * Get the active agent ID.
+     * Resolve the agent ID from X-Agent-Id header or fall back to active agent.
      */
-    private String getActiveAgentId() {
-        return agentService.getActiveAgentId();
+    private String resolveAgentId(String agentIdHeader) {
+        return (agentIdHeader != null && !agentIdHeader.isBlank())
+                ? agentIdHeader
+                : agentService.getActiveAgentId();
     }
 
     /**
@@ -50,8 +52,9 @@ public class AgentController {
      * GET /agent/files
      */
     @GetMapping("/files")
-    public List<MdFileInfo> listWorkingFiles() {
-        String agentId = getActiveAgentId();
+    public List<MdFileInfo> listWorkingFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.listAgentFiles(agentId);
     }
 
@@ -60,8 +63,10 @@ public class AgentController {
      * GET /agent/files/{md_name}
      */
     @GetMapping("/files/{md_name}")
-    public Map<String, String> readWorkingFile(@PathVariable("md_name") String mdName) {
-        String agentId = getActiveAgentId();
+    public Map<String, String> readWorkingFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName) {
+        String agentId = resolveAgentId(agentIdHeader);
         try {
             String content = agentService.readAgentFile(agentId, mdName);
             return Map.of("content", content);
@@ -76,13 +81,14 @@ public class AgentController {
      */
     @PutMapping("/files/{md_name}")
     public Map<String, Object> writeWorkingFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @PathVariable("md_name") String mdName,
             @RequestBody Map<String, String> request) {
         String content = request.get("content");
         if (content == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "content is required");
         }
-        String agentId = getActiveAgentId();
+        String agentId = resolveAgentId(agentIdHeader);
         boolean written = agentService.writeAgentFile(agentId, mdName, content);
         return Map.of("written", written);
     }
@@ -92,8 +98,9 @@ public class AgentController {
      * GET /agent/memory
      */
     @GetMapping("/memory")
-    public List<MdFileInfo> listMemoryFiles() {
-        String agentId = getActiveAgentId();
+    public List<MdFileInfo> listMemoryFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.listAgentMemory(agentId);
     }
 
@@ -102,8 +109,10 @@ public class AgentController {
      * GET /agent/memory/{md_name}
      */
     @GetMapping("/memory/{md_name}")
-    public Map<String, String> readMemoryFile(@PathVariable("md_name") String mdName) {
-        String agentId = getActiveAgentId();
+    public Map<String, String> readMemoryFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable("md_name") String mdName) {
+        String agentId = resolveAgentId(agentIdHeader);
         try {
             String content = agentService.readAgentFile(agentId, "memory/" + mdName);
             return Map.of("content", content);
@@ -118,13 +127,14 @@ public class AgentController {
      */
     @PutMapping("/memory/{md_name}")
     public Map<String, Object> writeMemoryFile(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @PathVariable("md_name") String mdName,
             @RequestBody Map<String, String> request) {
         String content = request.get("content");
         if (content == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "content is required");
         }
-        String agentId = getActiveAgentId();
+        String agentId = resolveAgentId(agentIdHeader);
         boolean written = agentService.writeAgentFile(agentId, "memory/" + mdName, content);
         return Map.of("written", written);
     }
@@ -134,8 +144,9 @@ public class AgentController {
      * GET /agent/language
      */
     @GetMapping("/language")
-    public Map<String, Object> getAgentLanguage() {
-        String agentId = getActiveAgentId();
+    public Map<String, Object> getAgentLanguage(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
         AgentProfileConfig config = agentService.getAgentConfig(agentId);
         return Map.of(
                 "language", config.getLanguage() != null ? config.getLanguage() : "zh",
@@ -148,7 +159,9 @@ public class AgentController {
      * PUT /agent/language
      */
     @PutMapping("/language")
-    public Map<String, Object> updateAgentLanguage(@RequestBody Map<String, String> request) {
+    public Map<String, Object> updateAgentLanguage(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody Map<String, String> request) {
         String language = request.get("language");
         if (language == null || language.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "language is required");
@@ -160,7 +173,7 @@ public class AgentController {
                     "Invalid language '" + language + "'. Must be one of: en, ru, zh");
         }
 
-        String agentId = getActiveAgentId();
+        String agentId = resolveAgentId(agentIdHeader);
         AgentProfileConfig config = agentService.getAgentConfig(agentId);
         String oldLanguage = config.getLanguage();
         config.setLanguage(language);
@@ -181,8 +194,9 @@ public class AgentController {
      * GET /agent/running-config
      */
     @GetMapping("/running-config")
-    public AgentsRunningConfig getRunningConfig() {
-        String agentId = getActiveAgentId();
+    public AgentsRunningConfig getRunningConfig(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.getRunningConfig(agentId);
     }
 
@@ -191,8 +205,10 @@ public class AgentController {
      * PUT /agent/running-config
      */
     @PutMapping("/running-config")
-    public AgentsRunningConfig updateRunningConfig(@RequestBody AgentsRunningConfig config) {
-        String agentId = getActiveAgentId();
+    public AgentsRunningConfig updateRunningConfig(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody AgentsRunningConfig config) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.updateRunningConfig(agentId, config);
     }
 
@@ -201,8 +217,9 @@ public class AgentController {
      * GET /agent/system-prompt-files
      */
     @GetMapping("/system-prompt-files")
-    public List<String> getSystemPromptFiles() {
-        String agentId = getActiveAgentId();
+    public List<String> getSystemPromptFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.getSystemPromptFiles(agentId);
     }
 
@@ -211,8 +228,10 @@ public class AgentController {
      * PUT /agent/system-prompt-files
      */
     @PutMapping("/system-prompt-files")
-    public List<String> updateSystemPromptFiles(@RequestBody List<String> files) {
-        String agentId = getActiveAgentId();
+    public List<String> updateSystemPromptFiles(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @RequestBody List<String> files) {
+        String agentId = resolveAgentId(agentIdHeader);
         return agentService.updateSystemPromptFiles(agentId, files);
     }
 }

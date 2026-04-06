@@ -98,6 +98,7 @@ export default function AgentsPage() {
           await skillApi.downloadSkillPoolSkill({
             skill_name: skill,
             targets: [{ workspace_id: editingAgent.id }],
+            overwrite: true,
           });
         }
         await agentsApi.updateAgent(editingAgent.id, payload);

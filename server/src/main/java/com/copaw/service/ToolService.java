@@ -108,9 +108,9 @@ public class ToolService {
     }
 
     /**
-     * List all builtin tools.
+     * List all builtin tools for the specified agent.
      */
-    public List<ToolInfo> listTools() {
+    public List<ToolInfo> listTools(String agentId) {
         JsonNode config = configStore.loadConfig();
         JsonNode toolsNode = config.get("tools");
         
@@ -137,9 +137,9 @@ public class ToolService {
     }
 
     /**
-     * Get a specific tool by name.
+     * Get a specific tool by name for the specified agent.
      */
-    public ToolInfo getTool(String toolName) {
+    public ToolInfo getTool(String agentId, String toolName) {
         JsonNode config = configStore.loadConfig();
         JsonNode toolsNode = config.get("tools");
         
@@ -158,10 +158,10 @@ public class ToolService {
     }
 
     /**
-     * Toggle tool enabled status.
+     * Toggle tool enabled status for the specified agent.
      */
-    public ToolInfo toggleTool(String toolName) {
-        ToolInfo tool = getTool(toolName);
+    public ToolInfo toggleTool(String agentId, String toolName) {
+        ToolInfo tool = getTool(agentId, toolName);
         if (tool == null) {
             throw new IllegalArgumentException("Tool '" + toolName + "' not found");
         }
@@ -173,10 +173,10 @@ public class ToolService {
     }
 
     /**
-     * Update tool async execution setting.
+     * Update tool async execution setting for the specified agent.
      */
-    public ToolInfo updateAsyncExecution(String toolName, boolean asyncExecution) {
-        ToolInfo tool = getTool(toolName);
+    public ToolInfo updateAsyncExecution(String agentId, String toolName, boolean asyncExecution) {
+        ToolInfo tool = getTool(agentId, toolName);
         if (tool == null) {
             throw new IllegalArgumentException("Tool '" + toolName + "' not found");
         }

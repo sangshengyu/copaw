@@ -244,13 +244,13 @@ public class SkillService {
         List<WorkspaceSkillSummary> summaries = new ArrayList<>();
 
         // Get all agent directories
-        Path agentsDir = dataDir.getAgentsDir();
-        if (!Files.exists(agentsDir)) {
+        Path workspacesDir = dataDir.getWorkspacesDir();
+        if (!Files.exists(workspacesDir)) {
             return summaries;
         }
 
         try {
-            Files.list(agentsDir).forEach(agentDir -> {
+            Files.list(workspacesDir).forEach(agentDir -> {
                 if (Files.isDirectory(agentDir)) {
                     String agentId = agentDir.getFileName().toString();
                     summaries.add(getWorkspaceSummary(agentId));
@@ -2003,8 +2003,8 @@ public class SkillService {
      */
     private void extractBuiltinSkillsFromClasspath() {
         try {
-            // Destination: {data-dir}/builtin_skills/
-            Path destDir = dataDir.getDataDir().resolve("builtin_skills");
+            // Destination: system temp dir to avoid polluting .copaw/ root
+            Path destDir = Path.of(System.getProperty("java.io.tmpdir"), "copaw_builtin_skills");
             Files.createDirectories(destDir);
 
             // Read index.json to get skill names
@@ -2062,14 +2062,19 @@ public class SkillService {
             return extractedBuiltinSkillsDir;
         }
 
-        // Fallback: check in data directory
+        // Fallback: check system temp dir
+        Path tempBuiltinDir = Path.of(System.getProperty("java.io.tmpdir"), "copaw_builtin_skills");
+        if (Files.exists(tempBuiltinDir)) {
+            return tempBuiltinDir;
+        }
+
+        // Last resort fallback (legacy location)
         Path builtinDir = dataDir.getDataDir().resolve("builtin_skills");
         if (Files.exists(builtinDir)) {
             return builtinDir;
         }
 
-        // Last resort fallback
-        return builtinDir;
+        return tempBuiltinDir;
     }
 
     /**

@@ -3,7 +3,6 @@ package com.copaw.service;
 import com.copaw.model.chat.ChatHistory;
 import com.copaw.model.chat.ChatSpec;
 import com.copaw.model.chat.ChatUpdate;
-import com.copaw.service.AgentService;
 import com.copaw.storage.ChatStore;
 import org.springframework.stereotype.Service;
 
@@ -19,29 +18,20 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final ChatStore chatStore;
-    private final AgentService agentService;
 
-    public ChatService(ChatStore chatStore, AgentService agentService) {
+    public ChatService(ChatStore chatStore) {
         this.chatStore = chatStore;
-        this.agentService = agentService;
     }
 
     /**
-     * Get the active agent ID.
-     */
-    private String getActiveAgentId() {
-        return agentService.getActiveAgentId();
-    }
-
-    /**
-     * List all chats for the active agent.
+     * List all chats for the specified agent.
      *
+     * @param agentId the agent ID
      * @param userId  optional user ID filter
      * @param channel optional channel filter
      * @return list of chat specs
      */
-    public List<ChatSpec> listChats(String userId, String channel) {
-        String agentId = getActiveAgentId();
+    public List<ChatSpec> listChats(String agentId, String userId, String channel) {
         List<ChatSpec> chats = chatStore.listChats(agentId);
 
         // Apply filters
@@ -57,8 +47,7 @@ public class ChatService {
      * @param chatId the chat ID
      * @return the chat spec, or null if not found
      */
-    public ChatSpec getChat(String chatId) {
-        String agentId = getActiveAgentId();
+    public ChatSpec getChat(String agentId, String chatId) {
         return chatStore.getChat(agentId, chatId);
     }
 
@@ -71,8 +60,7 @@ public class ChatService {
      * @param channel   the channel name
      * @return the matching chat spec, or null if not found
      */
-    public ChatSpec getChatBySessionId(String sessionId, String userId, String channel) {
-        String agentId = getActiveAgentId();
+    public ChatSpec getChatBySessionId(String agentId, String sessionId, String userId, String channel) {
         return chatStore.getChatBySessionId(agentId, sessionId, userId, channel);
     }
 
@@ -82,8 +70,7 @@ public class ChatService {
      * @param spec the chat spec
      * @return the created chat with generated ID
      */
-    public ChatSpec createChat(ChatSpec spec) {
-        String agentId = getActiveAgentId();
+    public ChatSpec createChat(String agentId, ChatSpec spec) {
 
         // Generate UUID for new chat
         String chatId = UUID.randomUUID().toString();
@@ -114,8 +101,7 @@ public class ChatService {
      * @param update    the update data
      * @return the updated chat, or null if not found
      */
-    public ChatSpec updateChat(String chatId, ChatUpdate update) {
-        String agentId = getActiveAgentId();
+    public ChatSpec updateChat(String agentId, String chatId, ChatUpdate update) {
         ChatSpec existing = chatStore.getChat(agentId, chatId);
 
         if (existing == null) {
@@ -138,8 +124,7 @@ public class ChatService {
      * @param chatId the chat ID
      * @return true if deleted
      */
-    public boolean deleteChat(String chatId) {
-        String agentId = getActiveAgentId();
+    public boolean deleteChat(String agentId, String chatId) {
         ChatSpec existing = chatStore.getChat(agentId, chatId);
 
         if (existing == null) {
@@ -156,8 +141,7 @@ public class ChatService {
      * @param chatIds the chat IDs to delete
      * @return true if all deleted
      */
-    public boolean deleteChats(List<String> chatIds) {
-        String agentId = getActiveAgentId();
+    public boolean deleteChats(String agentId, List<String> chatIds) {
         boolean allDeleted = true;
 
         for (String chatId : chatIds) {
@@ -178,8 +162,7 @@ public class ChatService {
      * @param chatId the chat ID
      * @return the chat history
      */
-    public ChatHistory getChatHistory(String chatId) {
-        String agentId = getActiveAgentId();
+    public ChatHistory getChatHistory(String agentId, String chatId) {
         ChatSpec chat = chatStore.getChat(agentId, chatId);
 
         if (chat == null) {

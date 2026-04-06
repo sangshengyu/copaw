@@ -1,6 +1,7 @@
 package com.copaw.controller;
 
 import com.copaw.model.common.ToolInfo;
+import com.copaw.service.AgentService;
 import com.copaw.service.ToolService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,26 +21,39 @@ public class ToolsController {
     private static final Logger log = LoggerFactory.getLogger(ToolsController.class);
 
     private final ToolService toolService;
+    private final AgentService agentService;
 
-    public ToolsController(ToolService toolService) {
+    public ToolsController(ToolService toolService, AgentService agentService) {
         this.toolService = toolService;
+        this.agentService = agentService;
+    }
+
+    private String resolveAgentId(String agentIdHeader) {
+        return (agentIdHeader != null && !agentIdHeader.isBlank())
+                ? agentIdHeader
+                : agentService.getActiveAgentId();
     }
 
     /**
      * List all builtin tools.
      */
     @GetMapping("")
-    public List<ToolInfo> listTools() {
-        return toolService.listTools();
+    public List<ToolInfo> listTools(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader) {
+        String agentId = resolveAgentId(agentIdHeader);
+        return toolService.listTools(agentId);
     }
 
     /**
      * Toggle tool enabled status.
      */
     @PatchMapping("/{toolName}/toggle")
-    public ToolInfo toggleTool(@PathVariable String toolName) {
+    public ToolInfo toggleTool(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
+            @PathVariable String toolName) {
+        String agentId = resolveAgentId(agentIdHeader);
         try {
-            return toolService.toggleTool(toolName);
+            return toolService.toggleTool(agentId, toolName);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
@@ -50,14 +64,16 @@ public class ToolsController {
      */
     @PatchMapping("/{toolName}/async-execution")
     public ToolInfo updateAsyncExecution(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @PathVariable String toolName,
             @RequestBody Map<String, Boolean> body) {
+        String agentId = resolveAgentId(agentIdHeader);
         Boolean asyncExecution = body.get("async_execution");
         if (asyncExecution == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "async_execution is required");
         }
         try {
-            return toolService.updateAsyncExecution(toolName, asyncExecution);
+            return toolService.updateAsyncExecution(agentId, toolName, asyncExecution);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }

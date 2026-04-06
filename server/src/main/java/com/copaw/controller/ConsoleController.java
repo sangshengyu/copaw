@@ -101,12 +101,14 @@ public class ConsoleController {
         String sessionIdFromRequest = request.getSessionId();
         String userId = request.getUserId();
         String channel = request.getChannel();
+        String agentId = request.getAgentId() != null ? request.getAgentId() : agentService.getActiveAgentId();
         String chatId;
         if (request.getChatId() != null && !request.getChatId().isEmpty()) {
             chatId = request.getChatId();
         } else if (sessionIdFromRequest != null && !sessionIdFromRequest.isEmpty()) {
             // Look up existing chat by session_id+user_id+channel (Python's get_or_create_chat pattern)
             ChatSpec existingBySession = chatService.getChatBySessionId(
+                    agentId,
                     sessionIdFromRequest,
                     userId != null ? userId : "default",
                     channel != null ? channel : "console");
@@ -119,7 +121,6 @@ public class ConsoleController {
             chatId = UUID.randomUUID().toString();
         }
         final String finalChatId = chatId;
-        String agentId = request.getAgentId() != null ? request.getAgentId() : agentService.getActiveAgentId();
         // Extract user content from request (supports both formats)
         String content = extractUserContent(request);
 
@@ -610,7 +611,7 @@ public class ConsoleController {
      */
     private ChatSpec getOrCreateChat(String chatId, String sessionIdFromRequest, String agentId, String content, String userId, String channel) {
         // Try to get existing chat by UUID
-        ChatSpec existing = chatService.getChat(chatId);
+        ChatSpec existing = chatService.getChat(agentId, chatId);
         if (existing != null) {
             log.debug("Found existing chat: {}", chatId);
             return existing;

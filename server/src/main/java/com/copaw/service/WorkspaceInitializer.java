@@ -18,9 +18,11 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Workspace initializer that runs on application startup.
@@ -231,6 +233,9 @@ public class WorkspaceInitializer implements ApplicationRunner {
      * Main initialization method. Creates all necessary directories and files.
      */
     private void initializeWorkspace() throws IOException {
+        // 0. Migrate legacy agents/ directory to workspaces/ (if needed)
+        migrateLegacyAgentsDir();
+
         // 1. Create directory structure
         createDirectoryStructure();
 
@@ -252,7 +257,6 @@ public class WorkspaceInitializer implements ApplicationRunner {
         createDirectoryIfNotExists(dataDir.getDataDir(), "data directory");
         createDirectoryIfNotExists(dataDir.getSkillPoolDir(), "skill pool directory");
         createDirectoryIfNotExists(dataDir.getWorkspacesDir(), "workspaces directory");
-        createDirectoryIfNotExists(dataDir.getAgentsDir(), "agents directory");
         createDirectoryIfNotExists(dataDir.getLogsDir(), "logs directory");
 
         // Secret directories
@@ -430,6 +434,152 @@ public class WorkspaceInitializer implements ApplicationRunner {
             configObj.set("agents", objectMapper.valueToTree(agentsConfig));
             configStore.saveConfig(configObj);
             log.info("Updated root config with default agent reference");
+        }
+    }
+
+    /**
+     * Migrate legacy agents/ directory to workspaces/.
+     *
+     * <p>Early Java versions stored agent data under ~/.copaw/agents/{id}/ instead
+     * of ~/.copaw/workspaces/{id}/ (Python's convention). This method moves any
+     * agent directories from the old location to the new one and updates config.json
+     * workspace_dir references.</p>
+     */
+    private void migrateLegacyAgentsDir() {
+        Path legacyAgentsDir = dataDir.getDataDir().resolve("agents");
+        if (!Files.exists(legacyAgentsDir) || !Files.isDirectory(legacyAgentsDir)) {
+            return;
+        }
+
+        log.info("Found legacy agents/ directory, migrating to workspaces/...");
+        Path workspacesDir = dataDir.getWorkspacesDir();
+
+        try {
+            Files.createDirectories(workspacesDir);
+
+            try (Stream<Path> children = Files.list(legacyAgentsDir)) {
+                children.filter(Files::isDirectory).forEach(agentDir -> {
+                    String agentId = agentDir.getFileName().toString();
+                    Path targetDir = workspacesDir.resolve(agentId);
+
+                    if (Files.exists(targetDir)) {
+                        // Target exists - merge files from legacy to target
+                        log.info("Merging legacy agents/{} into existing workspaces/{}", agentId, agentId);
+                        mergeDirectories(agentDir, targetDir);
+                    } else {
+                        try {
+                            Files.move(agentDir, targetDir);
+                            log.info("Migrated agent workspace: agents/{} -> workspaces/{}", agentId, agentId);
+                        } catch (IOException e) {
+                            log.warn("Failed to migrate agent {}: {}", agentId, e.getMessage());
+                        }
+                    }
+                });
+            }
+
+            // Update config.json workspace_dir references
+            updateConfigWorkspaceDirs(legacyAgentsDir, workspacesDir);
+
+            // Clean up empty legacy directory (recursive)
+            deleteEmptyDirs(legacyAgentsDir);
+        } catch (IOException e) {
+            log.warn("Legacy agents/ migration failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Merge files from source directory into target directory.
+     * Only copies files that don't exist in target (non-destructive).
+     * Cleans up source files/dirs after successful copy.
+     */
+    private void mergeDirectories(Path source, Path target) {
+        try (Stream<Path> walk = Files.walk(source)) {
+            walk.forEach(srcPath -> {
+                Path relPath = source.relativize(srcPath);
+                Path dstPath = target.resolve(relPath);
+                try {
+                    if (Files.isDirectory(srcPath)) {
+                        Files.createDirectories(dstPath);
+                    } else if (!Files.exists(dstPath)) {
+                        Files.createDirectories(dstPath.getParent());
+                        Files.move(srcPath, dstPath);
+                        log.debug("Merged file: {} -> {}", srcPath, dstPath);
+                    } else {
+                        log.debug("Skipping existing file: {}", dstPath);
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to merge {}: {}", srcPath, e.getMessage());
+                }
+            });
+        } catch (IOException e) {
+            log.warn("Failed to walk source directory {}: {}", source, e.getMessage());
+        }
+
+        // Clean up empty source directory tree
+        deleteEmptyDirs(source);
+    }
+
+    /**
+     * Recursively delete empty directories from bottom up.
+     */
+    private void deleteEmptyDirs(Path dir) {
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) return;
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.sorted(java.util.Comparator.reverseOrder())
+                    .filter(Files::isDirectory)
+                    .forEach(d -> {
+                        try (Stream<Path> contents = Files.list(d)) {
+                            if (contents.findAny().isEmpty()) {
+                                Files.delete(d);
+                                log.debug("Removed empty directory: {}", d);
+                            }
+                        } catch (IOException e) {
+                            // ignore
+                        }
+                    });
+        } catch (IOException e) {
+            // ignore
+        }
+    }
+
+    /**
+     * Update config.json workspace_dir paths from legacy agents/ to workspaces/.
+     */
+    private void updateConfigWorkspaceDirs(Path legacyAgentsDir, Path workspacesDir) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode config = configStore.loadConfig();
+            if (!config.isObject()) return;
+
+            com.fasterxml.jackson.databind.JsonNode agentsNode = config.get("agents");
+            if (agentsNode == null) return;
+
+            com.fasterxml.jackson.databind.JsonNode profilesNode = agentsNode.get("profiles");
+            if (profilesNode == null || !profilesNode.isObject()) return;
+
+            boolean updated = false;
+            String legacyPrefix = legacyAgentsDir.toString();
+
+            var it = profilesNode.fields();
+            while (it.hasNext()) {
+                var entry = it.next();
+                com.fasterxml.jackson.databind.JsonNode refNode = entry.getValue();
+                if (refNode.has("workspace_dir")) {
+                    String wsDir = refNode.get("workspace_dir").asText();
+                    if (wsDir.startsWith(legacyPrefix)) {
+                        String newDir = wsDir.replace(legacyPrefix, workspacesDir.toString());
+                        ((com.fasterxml.jackson.databind.node.ObjectNode) refNode).put("workspace_dir", newDir);
+                        updated = true;
+                        log.info("Updated workspace_dir for {}: {} -> {}", entry.getKey(), wsDir, newDir);
+                    }
+                }
+            }
+
+            if (updated) {
+                configStore.saveConfig(config);
+                log.info("Updated config.json with new workspace_dir paths");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update config workspace dirs: {}", e.getMessage());
         }
     }
 

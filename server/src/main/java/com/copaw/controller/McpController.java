@@ -32,12 +32,16 @@ public class McpController {
     }
 
     /**
-     * Helper to get agent ID from optional param or use active agent.
+     * Helper to get agent ID from X-Agent-Id header, query param, or active agent.
      */
-    private String resolveAgentId(String agentId) {
-        return (agentId != null && !agentId.isBlank()) 
-                ? agentId 
-                : agentService.getActiveAgentId();
+    private String resolveAgentId(String agentIdHeader, String agentIdParam) {
+        if (agentIdHeader != null && !agentIdHeader.isBlank()) {
+            return agentIdHeader;
+        }
+        if (agentIdParam != null && !agentIdParam.isBlank()) {
+            return agentIdParam;
+        }
+        return agentService.getActiveAgentId();
     }
 
     /**
@@ -45,8 +49,9 @@ public class McpController {
      */
     @GetMapping("")
     public List<MCPClientInfo> listMcpClients(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId) {
-        return mcpService.listMcpClients(resolveAgentId(agentId));
+        return mcpService.listMcpClients(resolveAgentId(agentIdHeader, agentId));
     }
 
     /**
@@ -54,9 +59,10 @@ public class McpController {
      */
     @GetMapping("/{client_key}")
     public MCPClientInfo getMcpClient(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId,
             @PathVariable("client_key") String clientKey) {
-        MCPClientInfo client = mcpService.getMcpClient(resolveAgentId(agentId), clientKey);
+        MCPClientInfo client = mcpService.getMcpClient(resolveAgentId(agentIdHeader, agentId), clientKey);
         if (client == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "MCP client not found: " + clientKey);
@@ -69,6 +75,7 @@ public class McpController {
      */
     @PostMapping("")
     public MCPClientInfo createMcpClient(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId,
             @RequestBody Map<String, Object> body) {
         String clientKey = (String) body.get("client_key");
@@ -85,7 +92,7 @@ public class McpController {
         MCPClientConfig config = buildClientConfig(clientData);
 
         try {
-            return mcpService.createMcpClient(resolveAgentId(agentId), clientKey, config);
+            return mcpService.createMcpClient(resolveAgentId(agentIdHeader, agentId), clientKey, config);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
@@ -96,13 +103,14 @@ public class McpController {
      */
     @PutMapping("/{client_key}")
     public MCPClientInfo updateMcpClient(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId,
             @PathVariable("client_key") String clientKey,
             @RequestBody Map<String, Object> updates) {
         MCPClientConfig config = buildClientConfig(updates);
 
         try {
-            return mcpService.updateMcpClient(resolveAgentId(agentId), clientKey, config);
+            return mcpService.updateMcpClient(resolveAgentId(agentIdHeader, agentId), clientKey, config);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
@@ -113,10 +121,11 @@ public class McpController {
      */
     @PatchMapping("/{client_key}/toggle")
     public MCPClientInfo toggleMcpClient(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId,
             @PathVariable("client_key") String clientKey) {
         try {
-            return mcpService.toggleMcpClient(resolveAgentId(agentId), clientKey);
+            return mcpService.toggleMcpClient(resolveAgentId(agentIdHeader, agentId), clientKey);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
         }
@@ -127,9 +136,10 @@ public class McpController {
      */
     @DeleteMapping("/{client_key}")
     public Map<String, String> deleteMcpClient(
+            @RequestHeader(value = "X-Agent-Id", required = false) String agentIdHeader,
             @RequestParam(value = "agent_id", required = false) String agentId,
             @PathVariable("client_key") String clientKey) {
-        boolean deleted = mcpService.deleteMcpClient(resolveAgentId(agentId), clientKey);
+        boolean deleted = mcpService.deleteMcpClient(resolveAgentId(agentIdHeader, agentId), clientKey);
         if (!deleted) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "MCP client not found: " + clientKey);

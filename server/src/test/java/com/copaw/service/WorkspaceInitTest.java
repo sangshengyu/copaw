@@ -47,7 +47,7 @@ class WorkspaceInitTest {
         objectMapper = new ObjectMapper();
         agentService = new AgentService(agentConfigStore, configStore, dataDir, objectMapper);
 
-        when(dataDir.getAgentDir(any())).thenAnswer(inv -> tempDir.resolve("agents").resolve((String) inv.getArgument(0)));
+        when(dataDir.getAgentDir(any())).thenAnswer(inv -> tempDir.resolve("workspaces").resolve((String) inv.getArgument(0)));
         when(dataDir.getWorkspaceDir(any())).thenAnswer(inv -> tempDir.resolve("workspaces").resolve((String) inv.getArgument(0)));
         
         // Setup configStore to return a valid ObjectNode for loadConfig
